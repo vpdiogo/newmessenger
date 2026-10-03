@@ -1,0 +1,93 @@
+# Local Development Setup
+
+## Prerequisites
+
+- Node.js LTS, managed with `nvm`.
+- `pnpm`, enabled through Corepack.
+
+## Initialize the Project
+
+```bash
+nvm install --lts
+nvm use --lts
+
+corepack enable
+
+pnpm init
+pnpm pkg set type=module
+
+pnpm add -D typescript@npm:@typescript/typescript6@^6.0.2 @types/node tsx
+```
+
+## Approve Required Build Scripts
+
+`tsx` uses `esbuild`, which includes a build script. Recent versions of pnpm require explicit approval before running dependency build scripts.
+
+```bash
+pnpm approve-builds
+```
+
+Select `esbuild`, then confirm the selection. This is an expected installation step, not an application error.
+
+## Configure TypeScript
+
+```bash
+pnpm exec tsc6 --init \
+  --strict \
+  --target ES2024 \
+  --module NodeNext \
+  --moduleResolution NodeNext \
+  --rootDir src \
+  --outDir dist \
+  --sourceMap \
+  --declaration \
+  --declarationMap
+
+mkdir -p src test
+```
+
+## Run PostgreSQL Locally
+
+Start the local database container:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+The database is available at:
+
+```text
+postgresql://newmessenger:newmessenger@localhost:5435/newmessenger
+```
+
+Copy the example environment file before adding local values:
+
+```bash
+cp .env.example .env
+```
+
+Stop the container while preserving its data:
+
+```bash
+docker compose down
+```
+
+Open a PostgreSQL shell when needed:
+
+```bash
+docker compose exec postgres psql -U newmessenger -d newmessenger
+```
+
+## Use Visual Studio Code
+
+Open the repository root in Visual Studio Code. The `.vscode/extensions.json` file recommends the ESLint and Prettier extensions.
+
+The workspace settings format JavaScript and TypeScript files with Prettier and run ESLint fixes whenever a file is explicitly saved. Reload the VS Code window if the project was already open when the workspace settings were added.
+
+## Verify the Toolchain
+
+```bash
+pnpm exec tsx --version
+pnpm exec tsc6 --version
+```
