@@ -79,6 +79,26 @@ Open a PostgreSQL shell when needed:
 docker compose exec postgres psql -U newmessenger -d newmessenger
 ```
 
+## Run Migrations
+
+Apply all pending migrations:
+
+```bash
+pnpm migration:up
+```
+
+Create a new JavaScript migration:
+
+```bash
+pnpm migration:create add-users
+```
+
+Revert the most recently applied migration:
+
+```bash
+pnpm migration:down
+```
+
 ## Use Visual Studio Code
 
 Open the repository root in Visual Studio Code. The `.vscode/extensions.json` file recommends the ESLint and Prettier extensions.
