@@ -11,7 +11,10 @@
     "test": "tsx --test test/**/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migration:create": "node-pg-migrate create --migrations-dir migrations",
+    "migration:up": "node-pg-migrate up --migrations-dir migrations",
+    "migration:down": "node-pg-migrate down --migrations-dir migrations"
   },
   "keywords": [],
   "author": "",
@@ -29,7 +32,9 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
+    "dotenv": "^18.0.5",
     "eslint": "^10.12.0",
+    "node-pg-migrate": "^9.0.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
@@ -38,6 +43,7 @@
   "dependencies": {
     "@fastify/websocket": "^11.3.1",
     "fastify": "^5.12.5",
+    "fastify-plugin": "^6.0.0",
     "pg": "^8.23.1",
     "zod": "^4.6.5"
   }
