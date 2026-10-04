@@ -12,9 +12,10 @@ The initial scaffold is complete. It currently provides:
 - `GET /health` for service health checks.
 - `GET /ws` for WebSocket connection acceptance.
 - PostgreSQL available through Docker Compose.
+- User registration, login, JWT access tokens, and a protected current-user endpoint.
 - ESLint, Prettier, type checking, tests, and production builds.
 
-Authentication, conversations, message persistence, and message delivery are not implemented yet.
+Conversations, message persistence, and message delivery are not implemented yet.
 
 ## Stack
 
@@ -38,6 +39,7 @@ corepack enable
 pnpm install
 cp .env.example .env
 docker compose up -d
+pnpm migration:up
 pnpm dev
 ```
 
@@ -47,6 +49,25 @@ Check application health:
 
 ```bash
 curl http://localhost:3000/health
+```
+
+## Authentication
+
+Set `JWT_SECRET` to a secret with at least 32 characters; `.env.example` contains a development-only value. Apply migrations before starting the server.
+
+Register with an email address and a password from 12 to 256 characters:
+
+```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"email":"user@example.com","password":"correct-horse-battery-staple"}'
+```
+
+The registration and login endpoints return an `accessToken`. Send it as a Bearer token to retrieve the signed-in user:
+
+```bash
+curl http://localhost:3000/auth/me \
+  -H 'authorization: Bearer <accessToken>'
 ```
 
 Open a WebSocket connection in a browser console:
