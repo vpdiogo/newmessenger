@@ -2,7 +2,10 @@ import { buildApp } from "./app.js";
 import { loadEnvironment } from "./config/env.js";
 
 const environment = loadEnvironment();
-const app = await buildApp({ databaseUrl: environment.DATABASE_URL });
+const app = await buildApp({
+  databaseUrl: environment.DATABASE_URL,
+  jwtSecret: environment.JWT_SECRET,
+});
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   app.log.info({ signal }, "Shutting down");

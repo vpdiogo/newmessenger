@@ -33,4 +33,5 @@
 - Favor high-signal tests over broad or redundant coverage.
 - Do not add tests for trivial implementation details or framework behavior.
 - Run the relevant formatter, type checker, linter, and targeted tests after each increment when they exist.
+- For every increment that exposes HTTP or WebSocket behavior, run an end-to-end QA check over TCP against the running server in addition to automated tests.
 - Report verification performed and any checks that could not be run.

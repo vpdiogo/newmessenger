@@ -27,7 +27,7 @@ pnpm add -D typescript@npm:@typescript/typescript6@^6.0.2 @types/node tsx
 pnpm approve-builds
 ```
 
-Select `esbuild`, then confirm the selection. This is an expected installation step, not an application error.
+Select `argon2` and `esbuild`, then confirm the selection. This is an expected installation step, not an application error.
 
 ## Configure TypeScript
 
