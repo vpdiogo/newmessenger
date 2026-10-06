@@ -13,9 +13,10 @@ The initial scaffold is complete. It currently provides:
 - `GET /ws` for WebSocket connection acceptance.
 - PostgreSQL available through Docker Compose.
 - User registration, login, JWT access tokens, and a protected current-user endpoint.
+- Authenticated creation and listing of one-to-one conversations.
 - ESLint, Prettier, type checking, tests, and production builds.
 
-Conversations, message persistence, and message delivery are not implemented yet.
+Message persistence and message delivery are not implemented yet.
 
 ## Stack
 
@@ -77,6 +78,25 @@ const socket = new WebSocket("ws://localhost:3000/ws");
 socket.addEventListener("message", console.log);
 ```
 
+## Conversations
+
+Create a direct conversation with another user's ID. Repeating the same request
+returns the existing conversation instead of creating a duplicate.
+
+```bash
+curl -X POST http://localhost:3000/conversations \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <accessToken>' \
+  -d '{"participantId":"<user-id>"}'
+```
+
+List the signed-in user's direct conversations:
+
+```bash
+curl http://localhost:3000/conversations \
+  -H 'authorization: Bearer <accessToken>'
+```
+
 ## Available Commands
 
 ```bash
@@ -112,4 +132,4 @@ docs/
 
 ## Next Increment
 
-The next implementation increment adds PostgreSQL migrations and the initial data model for users, conversations, memberships, and messages.
+The next implementation increment adds persisted messages to direct conversations.
