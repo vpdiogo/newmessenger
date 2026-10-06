@@ -65,7 +65,13 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: app.authenticate },
     async (request, reply) => {
       const input = createConversationSchema.safeParse(request.body);
-      if (!input.success || input.data.participantId === request.user.sub) {
+      if (!input.success) {
+        return reply.code(400).send({ message: "Invalid request" });
+      }
+
+      const userId = request.user.sub.toLowerCase();
+      const participantId = input.data.participantId.toLowerCase();
+      if (participantId === userId) {
         return reply.code(400).send({ message: "Invalid request" });
       }
 
@@ -73,8 +79,8 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
       try {
         const conversation = await createDirectConversation(
           client,
-          request.user.sub,
-          input.data.participantId,
+          userId,
+          participantId,
         );
         return reply.code(conversation.created ? 201 : 200).send({
           id: conversation.conversation_id,
@@ -110,7 +116,7 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
          JOIN users ON users.id = participants.user_id
          WHERE memberships.user_id = $1
          ORDER BY conversations.created_at DESC`,
-        [request.user.sub],
+        [request.user.sub.toLowerCase()],
       );
       return result.rows.map((conversation) => ({
         id: conversation.id,

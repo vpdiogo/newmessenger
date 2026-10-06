@@ -62,7 +62,7 @@ test(
         method: "POST",
         url: "/conversations",
         headers: { authorization: `Bearer ${secondToken}` },
-        payload: { participantId: firstUser.id },
+        payload: { participantId: firstUser.id.toUpperCase() },
       });
       assert.equal(repeatedConversation.statusCode, 200);
       assert.equal(repeatedConversation.json().id, conversationId);
@@ -86,7 +86,7 @@ test(
         method: "POST",
         url: "/conversations",
         headers: { authorization: `Bearer ${firstToken}` },
-        payload: { participantId: firstUser.id },
+        payload: { participantId: firstUser.id.toUpperCase() },
       });
       assert.equal(invalidConversation.statusCode, 400);
 
