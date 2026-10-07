@@ -16,6 +16,7 @@ The initial scaffold is complete. It currently provides:
 - Authenticated creation and listing of one-to-one conversations.
 - Persisted messages for direct conversations and chronological message history.
 - Best-effort real-time `message.created` delivery to connected members.
+- A public single-instance MVP deployed with Vercel, Render, and Supabase.
 - ESLint, Prettier, type checking, tests, and production builds.
 
 The application keeps WebSocket connections in memory, so real-time delivery is
@@ -196,6 +197,5 @@ docs/
 
 ## Next Increment
 
-The next increment deploys the single-instance MVP with managed PostgreSQL.
-Redis and multiple backend instances remain deliberately out of scope until
-there is a concrete need for distributed real-time delivery.
+The next increment evaluates Redis Pub/Sub when a concrete need for delivery
+across multiple backend instances exists.
