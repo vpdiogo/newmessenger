@@ -7,6 +7,7 @@ const environmentSchema = z.object({
     .default("development"),
   HOST: z.string().min(1).default("0.0.0.0"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
+  CORS_ORIGIN: z.url().default("http://localhost:5173"),
   DATABASE_URL: z.url(),
   JWT_SECRET: z.string().min(32),
 });

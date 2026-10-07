@@ -105,9 +105,25 @@ Open the repository root in Visual Studio Code. The `.vscode/extensions.json` fi
 
 The workspace settings format JavaScript and TypeScript files with Prettier and run ESLint fixes whenever a file is explicitly saved. Reload the VS Code window if the project was already open when the workspace settings were added.
 
+## Run the Web Client
+
+The Vue client lives in `apps/web`. Copy its local environment example, then
+start it in a second terminal while the backend is running:
+
+```bash
+cp apps/web/.env.example apps/web/.env
+pnpm web:dev
+```
+
+It listens on `http://localhost:5173` and calls `VITE_API_BASE_URL`, which
+defaults to `http://localhost:3000`. The backend permits that origin through
+`CORS_ORIGIN`; set a different value in `.env` when the frontend runs elsewhere.
+
 ## Verify the Toolchain
 
 ```bash
 pnpm exec tsx --version
 pnpm exec tsc6 --version
+pnpm web:typecheck
+pnpm web:build
 ```
