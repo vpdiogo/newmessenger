@@ -99,6 +99,18 @@ Revert the most recently applied migration:
 pnpm migration:down
 ```
 
+## Run the Application
+
+Start the backend after the database, environment file, and migrations are
+ready:
+
+```bash
+pnpm dev
+```
+
+The backend listens on `http://localhost:3000`. Keep this process running while
+developing the web client.
+
 ## Use Visual Studio Code
 
 Open the repository root in Visual Studio Code. The `.vscode/extensions.json` file recommends the ESLint and Prettier extensions.
@@ -119,11 +131,28 @@ It listens on `http://localhost:5173` and calls `VITE_API_BASE_URL`, which
 defaults to `http://localhost:3000`. The backend permits that origin through
 `CORS_ORIGIN`; set a different value in `.env` when the frontend runs elsewhere.
 
+## Manually Verify Real-Time Messaging
+
+Use two browser sessions, such as a normal window and a private window:
+
+1. Register two users and sign in to each session.
+2. Create a direct conversation from one account using the other user's UUID.
+3. In the other session, click **Refresh** and select the new conversation.
+4. Send a message in one session and confirm that it appears in the other
+   without a refresh.
+5. Use browser DevTools to take one session offline, then send a message from
+   the other session. Restore the network and confirm that the disconnected
+   client recovers the missed message after reconnecting.
+
 ## Verify the Toolchain
 
 ```bash
 pnpm exec tsx --version
 pnpm exec tsc6 --version
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
 pnpm web:typecheck
 pnpm web:test
 pnpm web:build
