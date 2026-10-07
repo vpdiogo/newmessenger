@@ -15,9 +15,12 @@ The initial scaffold is complete. It currently provides:
 - User registration, login, JWT access tokens, and a protected current-user endpoint.
 - Authenticated creation and listing of one-to-one conversations.
 - Persisted messages for direct conversations and chronological message history.
+- Best-effort real-time `message.created` delivery to connected members.
 - ESLint, Prettier, type checking, tests, and production builds.
 
-Real-time message delivery is not implemented yet.
+The application keeps WebSocket connections in memory, so real-time delivery is
+best-effort and scoped to one application instance. PostgreSQL remains the
+source of truth for message history.
 
 ## Stack
 
@@ -72,10 +75,13 @@ curl http://localhost:3000/auth/me \
   -H 'authorization: Bearer <accessToken>'
 ```
 
-Open a WebSocket connection in a browser console:
+Open an authenticated WebSocket connection in a browser console:
 
 ```js
-const socket = new WebSocket("ws://localhost:3000/ws");
+const socket = new WebSocket("ws://localhost:3000/ws", [
+  "bearer",
+  "<accessToken>",
+]);
 socket.addEventListener("message", console.log);
 ```
 
@@ -151,4 +157,5 @@ docs/
 
 ## Next Increment
 
-The next implementation increment delivers persisted messages over WebSocket.
+The initial roadmap is complete. Future increments should be driven by a
+concrete product or operational requirement.

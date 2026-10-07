@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
+import type { Message } from "./types.js";
+
 const conversationParamsSchema = z.object({ conversationId: z.uuid() });
 const createMessageSchema = z.object({
   content: z.string().trim().min(1).max(2000),
@@ -16,7 +18,7 @@ type MessageRow = {
   sender_id: string;
 };
 
-function messageResponse(message: MessageRow) {
+function messageResponse(message: MessageRow): Message {
   return {
     id: message.id,
     conversationId: message.conversation_id,
@@ -65,7 +67,16 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
       if (!message) {
         return reply.code(404).send({ message: "Conversation not found" });
       }
-      return reply.code(201).send(messageResponse(message));
+      const response = messageResponse(message);
+      const members = await app.postgres.query<{ user_id: string }>(
+        "SELECT user_id FROM conversation_members WHERE conversation_id = $1",
+        [conversationId],
+      );
+      app.realtime.publishMessage(
+        members.rows.map((member) => member.user_id),
+        response,
+      );
+      return reply.code(201).send(response);
     },
   );
 

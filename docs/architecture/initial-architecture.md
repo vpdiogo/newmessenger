@@ -4,7 +4,7 @@
 
 Build the smallest reliable real-time messenger for learning the Node.js ecosystem and system design fundamentals.
 
-The first increment supports authenticated one-to-one text messaging. Messages are persisted and delivered in real time when the recipient is connected.
+The first increment supports authenticated one-to-one text messaging. Messages are persisted through HTTP and delivered in real time when a member is connected.
 
 ## System Context
 
@@ -23,11 +23,11 @@ There is one application instance in the initial architecture.
 
 ### Node.js Application
 
-- Exposes HTTP endpoints for authentication and message history.
+- Exposes HTTP endpoints for authentication, conversations, sending messages, and message history.
 - Exposes a WebSocket endpoint for real-time events.
-- Authenticates WebSocket connections using a JWT.
-- Validates all HTTP and WebSocket input.
-- Persists messages before reporting successful acceptance to the sender.
+- Authenticates WebSocket connections using a JWT in the WebSocket subprotocol.
+- Validates all HTTP input.
+- Persists messages before reporting successful acceptance through HTTP.
 - Keeps a `Map<userId, Set<WebSocket>>` of connected client devices.
 - Delivers a persisted message immediately to each connected recipient socket.
 
@@ -42,12 +42,12 @@ Clients use HTTP for request-response operations and WebSocket for server-initia
 ## Message Flow
 
 ```text
-1. Client A opens a WebSocket connection and authenticates.
-2. Client A sends `message.send` with a client-generated request ID.
+1. Client A and Client B open WebSocket connections and authenticate.
+2. Client A sends a message through the HTTP API.
 3. The application validates authentication, membership, and payload.
 4. The application stores the message in PostgreSQL.
-5. The application replies to Client A with `message.accepted`.
-6. If Client B has active sockets, the application emits `message.created` to them.
+5. The application replies to Client A with the persisted message.
+6. If either member has active sockets, the application emits `message.created` to them.
 7. If Client B is offline, the message remains available through message history after reconnection.
 ```
 
@@ -77,15 +77,13 @@ Required constraints and indexes:
 
 ## WebSocket Contract
 
-Event names and payloads are versioned through explicit message types. The initial events are:
+Event names and payloads are versioned through explicit message types. The initial server event is:
 
 ```text
-Client -> Server: message.send
-Server -> Client: message.accepted
 Server -> Client: message.created
 ```
 
-Each `message.send` includes a client-generated `requestId`. Retrying the same request must not create another message.
+Messages are sent through the HTTP API. WebSocket delivery is an optional real-time notification, not the durable write path.
 
 ## Explicit Non-Goals
 
