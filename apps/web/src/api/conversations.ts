@@ -17,6 +17,19 @@ export type Message = {
 
 export type MessageHistory = { messages: Message[]; nextCursor: string | null };
 
+export async function sendMessage(
+  conversationId: string,
+  clientMessageId: string,
+  content: string,
+): Promise<Message> {
+  const data = await requestJson(`/conversations/${conversationId}/messages`, {
+    body: JSON.stringify({ clientMessageId, content }),
+    method: "POST",
+  });
+  if (!isMessage(data)) throw new Error("The API message response is invalid");
+  return data;
+}
+
 export async function createConversation(
   participantId: string,
 ): Promise<string> {
@@ -84,7 +97,7 @@ function isConversation(data: unknown): data is Conversation {
   );
 }
 
-function isMessage(data: unknown): data is Message {
+export function isMessage(data: unknown): data is Message {
   return (
     typeof data === "object" &&
     data !== null &&

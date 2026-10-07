@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+
+import type { Message } from "./api/conversations";
+import { appendMessages } from "./messages";
+
+const firstMessage: Message = {
+  clientMessageId: "client-1",
+  content: "First",
+  conversationId: "conversation-1",
+  createdAt: "2026-10-07T00:00:00.000Z",
+  id: "message-1",
+  senderId: "user-1",
+};
+
+const secondMessage: Message = {
+  ...firstMessage,
+  clientMessageId: "client-2",
+  content: "Second",
+  createdAt: "2026-10-07T00:01:00.000Z",
+  id: "message-2",
+};
+
+describe("appendMessages", () => {
+  it("deduplicates websocket deliveries and keeps messages chronological", () => {
+    expect(
+      appendMessages([secondMessage], [firstMessage, secondMessage]),
+    ).toEqual([firstMessage, secondMessage]);
+  });
+});

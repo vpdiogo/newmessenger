@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import {
   type Conversation,
@@ -7,17 +7,31 @@ import {
   createConversation,
   getConversations,
   getMessageHistory,
+  sendMessage,
 } from "../api/conversations";
 import { isCurrentHistoryRequest } from "../history";
+import { appendMessages } from "../messages";
+import {
+  connectRealtime,
+  connectionState,
+  disconnectRealtime,
+} from "../realtime";
 
 const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
 const messages = ref<Message[]>([]);
 const nextCursor = ref<string | null>(null);
 const participantId = ref("");
+const messageContent = ref("");
+const pendingMessage = ref<{
+  clientMessageId: string;
+  content: string;
+  conversationId: string;
+} | null>(null);
 const isLoadingConversations = ref(true);
 const isLoadingMessages = ref(false);
 const isCreatingConversation = ref(false);
+const isSendingMessage = ref(false);
 const errorMessage = ref<string | null>(null);
 
 const selectedConversation = computed(() =>
@@ -26,7 +40,14 @@ const selectedConversation = computed(() =>
   ),
 );
 
-onMounted(loadConversations);
+onMounted(() => {
+  void loadConversations();
+  connectRealtime(handleMessageCreated, () => {
+    void recoverMessages();
+  });
+});
+
+onBeforeUnmount(disconnectRealtime);
 
 async function loadConversations(): Promise<void> {
   isLoadingConversations.value = true;
@@ -65,7 +86,66 @@ async function selectConversation(conversationId: string): Promise<void> {
   selectedConversationId.value = conversationId;
   messages.value = [];
   nextCursor.value = null;
+  pendingMessage.value = null;
+  messageContent.value = "";
   await loadMessages();
+}
+
+async function submitMessage(): Promise<void> {
+  if (!selectedConversationId.value) return;
+
+  const conversationId = selectedConversationId.value;
+  const content = messageContent.value.trim();
+  const retry = pendingMessage.value;
+  if (!content || (retry && retry.conversationId !== conversationId)) return;
+
+  const request =
+    retry ??
+    ({
+      clientMessageId: crypto.randomUUID(),
+      content,
+      conversationId,
+    } as const);
+
+  isSendingMessage.value = true;
+  errorMessage.value = null;
+  try {
+    const message = await sendMessage(
+      request.conversationId,
+      request.clientMessageId,
+      request.content,
+    );
+    messages.value = appendMessages(messages.value, [message]);
+    messageContent.value = "";
+    pendingMessage.value = null;
+  } catch {
+    pendingMessage.value = request;
+    errorMessage.value = "Unable to send the message. Please retry.";
+  } finally {
+    isSendingMessage.value = false;
+  }
+}
+
+function handleMessageCreated(message: Message): void {
+  if (message.conversationId !== selectedConversationId.value) return;
+  messages.value = appendMessages(messages.value, [message]);
+}
+
+async function recoverMessages(): Promise<void> {
+  if (!selectedConversationId.value || messages.value.length === 0) return;
+
+  const conversationId = selectedConversationId.value;
+  const lastMessage = messages.value.at(-1);
+  if (!lastMessage) return;
+
+  try {
+    const history = await getMessageHistory(conversationId, lastMessage.id);
+    if (selectedConversationId.value !== conversationId) return;
+    messages.value = appendMessages(messages.value, history.messages);
+    nextCursor.value = history.nextCursor;
+  } catch {
+    errorMessage.value = "Unable to recover messages. Please refresh.";
+  }
 }
 
 async function loadMessages(): Promise<void> {
@@ -91,13 +171,7 @@ async function loadMessages(): Promise<void> {
     ) {
       return;
     }
-    const knownMessageIds = new Set(
-      messages.value.map((message) => message.id),
-    );
-    messages.value = [
-      ...messages.value,
-      ...history.messages.filter((message) => !knownMessageIds.has(message.id)),
-    ];
+    messages.value = appendMessages(messages.value, history.messages);
     nextCursor.value = history.nextCursor;
     applied = true;
   } catch {
@@ -212,6 +286,37 @@ async function loadMessages(): Promise<void> {
         >
           Load more messages
         </button>
+        <form class="space-y-2" @submit.prevent="submitMessage">
+          <label class="block text-sm font-medium text-slate-700" for="message">
+            Message
+          </label>
+          <textarea
+            id="message"
+            v-model="messageContent"
+            class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Write a message"
+            required
+            rows="3"
+          />
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm text-slate-500">
+              Connection: {{ connectionState }}
+            </p>
+            <button
+              class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+              :disabled="isSendingMessage || !messageContent.trim()"
+              type="submit"
+            >
+              {{
+                isSendingMessage
+                  ? "Sending..."
+                  : pendingMessage
+                    ? "Retry message"
+                    : "Send message"
+              }}
+            </button>
+          </div>
+        </form>
       </template>
       <p v-else class="text-slate-500">Select or create a conversation.</p>
       <p v-if="errorMessage" class="text-sm text-rose-700">
