@@ -3,6 +3,7 @@ import { loadEnvironment } from "./config/env.js";
 
 const environment = loadEnvironment();
 const app = await buildApp({
+  corsOrigin: environment.CORS_ORIGIN,
   databaseUrl: environment.DATABASE_URL,
   jwtSecret: environment.JWT_SECRET,
 });

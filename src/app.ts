@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 
 import { healthRoutes } from "./modules/health/routes.js";
@@ -11,6 +12,7 @@ import { postgresPlugin } from "./plugins/postgres.js";
 import { realtimePlugin } from "./plugins/realtime.js";
 
 type BuildAppOptions = {
+  corsOrigin?: string;
   databaseUrl: string;
   jwtSecret: string;
 };
@@ -18,6 +20,7 @@ type BuildAppOptions = {
 export async function buildApp(options: BuildAppOptions) {
   const app = Fastify({ logger: true });
 
+  await app.register(cors, { origin: options.corsOrigin ?? false });
   await app.register(websocket);
   await app.register(postgresPlugin, { connectionString: options.databaseUrl });
   await app.register(authPlugin, { secret: options.jwtSecret });

@@ -22,6 +22,10 @@ The application keeps WebSocket connections in memory, so real-time delivery is
 best-effort and scoped to one application instance. PostgreSQL remains the
 source of truth for message history.
 
+The repository also contains a Vue frontend foundation in `apps/web`. It uses
+HTTP for API requests and will use the native browser WebSocket API for
+real-time events in a later increment.
+
 ## Stack
 
 - Node.js LTS and TypeScript
@@ -55,6 +59,19 @@ Check application health:
 ```bash
 curl http://localhost:3000/health
 ```
+
+## Run the Web Client
+
+Keep the backend running, then start the Vue application in another terminal:
+
+```bash
+cp apps/web/.env.example apps/web/.env
+pnpm web:dev
+```
+
+Open `http://localhost:5173`. The home page calls the backend health endpoint
+with `fetch` and displays its availability. `VITE_API_BASE_URL` defaults to
+`http://localhost:3000` when it is not set.
 
 ## Authentication
 
@@ -140,6 +157,9 @@ pnpm format
 pnpm format:check
 pnpm typecheck
 pnpm test
+pnpm web:dev
+pnpm web:typecheck
+pnpm web:build
 ```
 
 ## Project Structure
@@ -151,6 +171,7 @@ src/
   app.ts        Fastify application factory
   server.ts     Process entry point
 test/           Focused application tests
+apps/web/        Vue client
 docs/
   architecture/ Architecture decisions and boundaries
   development/  Local setup instructions
@@ -164,5 +185,5 @@ docs/
 
 ## Next Increment
 
-The initial roadmap is complete. Future increments should be driven by a
-concrete product or operational requirement.
+The next increment adds registration, login, and local session handling to the
+web client.
