@@ -46,12 +46,16 @@ PostgreSQL is the source of truth for users, conversations, members, and message
 
 ### Clients
 
-The Vue client uses `fetch` for request-response operations and will use the
-native WebSocket API for server-initiated real-time events. It stores the MVP
-JWT in browser local storage, validates it through `GET /auth/me` during
-startup, protects authenticated client routes, and renders conversation history
-through the cursor API. Clients must tolerate duplicate events and reconnect
-safely.
+The Vue client uses `fetch` for request-response operations and the native
+WebSocket API for server-initiated events. It stores the MVP JWT in browser
+local storage, validates it through `GET /auth/me` during startup, and protects
+authenticated client routes.
+
+The client creates messages through HTTP with a generated `clientMessageId`.
+If a send fails, it retries with the same ID. It deduplicates HTTP responses and
+`message.created` events by message ID, reconnects its WebSocket after a close,
+and requests history after its last rendered message to recover missed events.
+The connection status is exposed in the conversation UI.
 
 ## Message Flow
 
@@ -111,6 +115,27 @@ Server -> Client: message.created
 ```
 
 Messages are sent through the HTTP API. WebSocket delivery is an optional real-time notification, not the durable write path.
+
+## Client Delivery and Recovery
+
+```mermaid
+sequenceDiagram
+  participant Client as Vue client
+  participant App as Node.js application
+  participant DB as PostgreSQL
+
+  Client->>App: WebSocket closes
+  Client->>App: Reconnect WebSocket with JWT subprotocol
+  App-->>Client: connection.accepted
+  Client->>App: GET messages?cursor=last-rendered-message
+  App->>DB: Read newer messages
+  DB-->>App: Chronological messages
+  App-->>Client: Message history
+  Client->>Client: Deduplicate and render
+```
+
+Recovery does not make WebSocket delivery durable. It makes an interrupted
+best-effort delivery safe because PostgreSQL is still the source of truth.
 
 ## Explicit Non-Goals
 
