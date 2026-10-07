@@ -49,8 +49,9 @@ PostgreSQL is the source of truth for users, conversations, members, and message
 The Vue client uses `fetch` for request-response operations and will use the
 native WebSocket API for server-initiated real-time events. It stores the MVP
 JWT in browser local storage, validates it through `GET /auth/me` during
-startup, and protects authenticated client routes. Clients must tolerate
-duplicate events and reconnect safely.
+startup, protects authenticated client routes, and renders conversation history
+through the cursor API. Clients must tolerate duplicate events and reconnect
+safely.
 
 ## Message Flow
 

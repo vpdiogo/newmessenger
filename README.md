@@ -193,5 +193,5 @@ docs/
 
 ## Next Increment
 
-The next increment adds conversation selection and paginated message history to
-the web client.
+The next increment adds HTTP message sending and WebSocket updates to the web
+client.
