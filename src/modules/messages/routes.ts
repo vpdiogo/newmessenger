@@ -68,14 +68,21 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(404).send({ message: "Conversation not found" });
       }
       const response = messageResponse(message);
-      const members = await app.postgres.query<{ user_id: string }>(
-        "SELECT user_id FROM conversation_members WHERE conversation_id = $1",
-        [conversationId],
-      );
-      app.realtime.publishMessage(
-        members.rows.map((member) => member.user_id),
-        response,
-      );
+      try {
+        const members = await app.postgres.query<{ user_id: string }>(
+          "SELECT user_id FROM conversation_members WHERE conversation_id = $1",
+          [conversationId],
+        );
+        app.realtime.publishMessage(
+          members.rows.map((member) => member.user_id),
+          response,
+        );
+      } catch (error) {
+        app.log.error(
+          { err: error, conversationId, messageId: response.id },
+          "Unable to publish message.created",
+        );
+      }
       return reply.code(201).send(response);
     },
   );
