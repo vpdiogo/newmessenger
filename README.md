@@ -2,7 +2,7 @@
 
 A minimal real-time messenger built to study the Node.js ecosystem and system design fundamentals.
 
-The project starts as a modular monolith: one Node.js application owns the HTTP API, WebSocket connections, and future message persistence. It deliberately introduces infrastructure only when a concrete requirement exists.
+The project starts as a modular monolith: one Node.js application owns the HTTP API, WebSocket connections, and message persistence. It deliberately introduces infrastructure only when a concrete requirement exists.
 
 ## Current Status
 
@@ -10,7 +10,7 @@ The initial scaffold is complete. It currently provides:
 
 - A Fastify application written in strict TypeScript.
 - `GET /health` for service health checks.
-- `GET /ws` for WebSocket connection acceptance.
+- An authenticated `GET /ws` WebSocket endpoint for real-time events.
 - PostgreSQL available through Docker Compose.
 - User registration, login, JWT access tokens, and a protected current-user endpoint.
 - Authenticated creation and listing of one-to-one conversations.

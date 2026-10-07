@@ -4,15 +4,24 @@
 
 Build the smallest reliable real-time messenger for learning the Node.js ecosystem and system design fundamentals.
 
-The first increment supports authenticated one-to-one text messaging. Messages are persisted through HTTP and delivered in real time when a member is connected.
+The initial roadmap supports authenticated one-to-one text messaging. Messages are persisted through HTTP and delivered in real time when a member is connected.
 
 ## System Context
 
-```text
-Client A ─┐
-          ├── HTTP and WebSocket ──> Node.js application ──> PostgreSQL
-Client B ─┘                                  │
-                                             └── connected sockets in memory
+```mermaid
+flowchart LR
+  alice["Alice client"]
+  bob["Bob client"]
+  app["Node.js modular monolith<br/>Fastify"]
+  database[("PostgreSQL")]
+  sockets["In-memory connections<br/>Map&lt;userId, Set&lt;WebSocket&gt;&gt;"]
+
+  alice -->|HTTP writes and reads| app
+  bob -->|HTTP writes and reads| app
+  alice <-->|WebSocket events| app
+  bob <-->|WebSocket events| app
+  app -->|Durable state| database
+  app --- sockets
 ```
 
 The application is a single deployable modular monolith built with Fastify and `@fastify/websocket`. It owns the HTTP API, WebSocket connections, authentication, message persistence, and real-time delivery.
@@ -29,7 +38,7 @@ There is one application instance in the initial architecture.
 - Validates all HTTP input.
 - Persists messages before reporting successful acceptance through HTTP.
 - Keeps a `Map<userId, Set<WebSocket>>` of connected client devices.
-- Delivers a persisted message immediately to each connected recipient socket.
+- Delivers a persisted message immediately to each connected member socket.
 
 ### PostgreSQL
 
@@ -41,14 +50,23 @@ Clients use HTTP for request-response operations and WebSocket for server-initia
 
 ## Message Flow
 
-```text
-1. Client A and Client B open WebSocket connections and authenticate.
-2. Client A sends a message through the HTTP API.
-3. The application validates authentication, membership, and payload.
-4. The application stores the message in PostgreSQL.
-5. The application replies to Client A with the persisted message.
-6. If either member has active sockets, the application emits `message.created` to them.
-7. If Client B is offline, the message remains available through message history after reconnection.
+```mermaid
+sequenceDiagram
+  participant Alice
+  participant App as Node.js application
+  participant DB as PostgreSQL
+  participant Bob
+
+  Alice->>App: POST /conversations/:id/messages
+  App->>App: Validate JWT, membership, and payload
+  App->>DB: INSERT message
+  DB-->>App: Persisted message
+  App->>DB: Read conversation members
+  App-->>Alice: 201 persisted message
+  App-->>Alice: message.created (if connected)
+  App-->>Bob: message.created (if connected)
+
+  Note over App,Bob: Delivery is best-effort. Offline clients<br/>recover through HTTP message history.
 ```
 
 Persisting before delivery is mandatory. WebSocket delivery is best-effort; PostgreSQL provides recovery after a failed connection or application restart.
@@ -57,7 +75,7 @@ Persisting before delivery is mandatory. WebSocket delivery is best-effort; Post
 
 ```text
 users
-  id, name
+  id, email, password_hash, created_at
 
 conversations
   id, created_at
@@ -66,20 +84,23 @@ conversation_members
   conversation_id, user_id
 
 messages
-  id, conversation_id, sender_id, client_message_id, content, created_at
+  id, conversation_id, sender_id, content, created_at
 ```
 
-Required constraints and indexes:
+Current constraints and indexes:
 
-- `UNIQUE(sender_id, client_message_id)` prevents duplicate sends after client retries.
-- An index on `(conversation_id, created_at DESC)` supports cursor-based message history.
+- A canonical unique user pair prevents duplicate direct conversations.
+- The composite primary key on `(conversation_id, user_id)` prevents duplicate memberships.
+- An index on `(conversation_id, created_at ASC, id)` supports chronological message history.
 - Conversation membership is checked before reading or sending messages.
 
 ## WebSocket Contract
 
-Event names and payloads are versioned through explicit message types. The initial server event is:
+WebSocket connections authenticate through `Sec-WebSocket-Protocol` with
+`bearer, <JWT>`. The current events are:
 
 ```text
+Server -> Client: connection.accepted
 Server -> Client: message.created
 ```
 
