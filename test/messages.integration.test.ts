@@ -86,6 +86,19 @@ test(
       });
       assert.equal(secondMessage.statusCode, 201);
 
+      const publishMessage = app.realtime.publishMessage;
+      app.realtime.publishMessage = () => {
+        throw new Error("Simulated delivery failure");
+      };
+      const persistedMessageAfterDeliveryFailure = await app.inject({
+        method: "POST",
+        url: `/conversations/${conversationId}/messages`,
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: { content: "Persisted after delivery failure" },
+      });
+      app.realtime.publishMessage = publishMessage;
+      assert.equal(persistedMessageAfterDeliveryFailure.statusCode, 201);
+
       const history = await app.inject({
         method: "GET",
         url: `/conversations/${conversationId}/messages`,
@@ -94,7 +107,7 @@ test(
       assert.equal(history.statusCode, 200);
       assert.deepEqual(
         history.json().map((message: { content: string }) => message.content),
-        ["First message", "Second message"],
+        ["First message", "Second message", "Persisted after delivery failure"],
       );
 
       const invalidMessage = await app.inject({
@@ -118,7 +131,7 @@ test(
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${firstToken}` },
       });
-      assert.equal(memberHistoryAfterOutsideWrite.json().length, 2);
+      assert.equal(memberHistoryAfterOutsideWrite.json().length, 3);
 
       const outsideRead = await app.inject({
         method: "GET",
