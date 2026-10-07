@@ -191,6 +191,7 @@ docs/
 
 - [Initial architecture](docs/architecture/initial-architecture.md)
 - [Local development setup](docs/development/setup.md)
+- [Production deployment](docs/deployment/production.md)
 - [Project guidelines](AGENTS.md)
 
 ## Next Increment
