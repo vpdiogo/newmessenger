@@ -137,10 +137,12 @@ Use two browser sessions, such as a normal window and a private window:
 
 1. Register two users and sign in to each session.
 2. Create a direct conversation from one account using the other user's UUID.
-3. Send a message in one session and confirm that it appears in the other
+3. In the other session, click **Refresh** and select the new conversation.
+4. Send a message in one session and confirm that it appears in the other
    without a refresh.
-4. Reload one session, send a message from the other, then confirm that the
-   reloaded client recovers the message from history after reconnecting.
+5. Use browser DevTools to take one session offline, then send a message from
+   the other session. Restore the network and confirm that the disconnected
+   client recovers the missed message after reconnecting.
 
 ## Verify the Toolchain
 
