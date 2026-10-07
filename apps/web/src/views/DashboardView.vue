@@ -8,6 +8,7 @@ import {
   getConversations,
   getMessageHistory,
 } from "../api/conversations";
+import { isCurrentHistoryRequest } from "../history";
 
 const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
@@ -70,13 +71,26 @@ async function selectConversation(conversationId: string): Promise<void> {
 async function loadMessages(): Promise<void> {
   if (!selectedConversationId.value) return;
 
+  const conversationId = selectedConversationId.value;
+  const cursor = nextCursor.value;
+  let applied = false;
   isLoadingMessages.value = true;
   errorMessage.value = null;
   try {
     const history = await getMessageHistory(
-      selectedConversationId.value,
-      nextCursor.value ?? undefined,
+      conversationId,
+      cursor ?? undefined,
     );
+    if (
+      !isCurrentHistoryRequest(
+        selectedConversationId.value,
+        nextCursor.value,
+        conversationId,
+        cursor,
+      )
+    ) {
+      return;
+    }
     const knownMessageIds = new Set(
       messages.value.map((message) => message.id),
     );
@@ -85,10 +99,21 @@ async function loadMessages(): Promise<void> {
       ...history.messages.filter((message) => !knownMessageIds.has(message.id)),
     ];
     nextCursor.value = history.nextCursor;
+    applied = true;
   } catch {
     errorMessage.value = "Unable to load messages. Please try again.";
   } finally {
-    isLoadingMessages.value = false;
+    if (
+      applied ||
+      isCurrentHistoryRequest(
+        selectedConversationId.value,
+        nextCursor.value,
+        conversationId,
+        cursor,
+      )
+    ) {
+      isLoadingMessages.value = false;
+    }
   }
 }
 </script>
