@@ -84,13 +84,14 @@ conversation_members
   conversation_id, user_id
 
 messages
-  id, conversation_id, sender_id, content, created_at
+  id, conversation_id, sender_id, client_message_id, content, created_at
 ```
 
 Current constraints and indexes:
 
 - A canonical unique user pair prevents duplicate direct conversations.
 - The composite primary key on `(conversation_id, user_id)` prevents duplicate memberships.
+- `UNIQUE(sender_id, client_message_id)` makes message retries idempotent.
 - An index on `(conversation_id, created_at ASC, id)` supports chronological message history.
 - Conversation membership is checked before reading or sending messages.
 

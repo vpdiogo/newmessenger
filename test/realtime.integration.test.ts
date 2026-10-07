@@ -28,6 +28,23 @@ function nextMessageCreated(socket: WebSocket) {
   });
 }
 
+function expectNoMessageCreated(socket: WebSocket) {
+  return new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      socket.off("message", onMessage);
+      resolve();
+    }, 100);
+    const onMessage = (payload: Buffer) => {
+      const event = JSON.parse(payload.toString()) as { type: string };
+      if (event.type !== "message.created") return;
+      clearTimeout(timeout);
+      socket.off("message", onMessage);
+      reject(new Error("Received a duplicate message.created event"));
+    };
+    socket.on("message", onMessage);
+  });
+}
+
 test(
   "persisted messages are delivered to connected conversation members",
   { skip: !canRunRealtimeTest },
@@ -79,11 +96,15 @@ test(
       });
       const messageEvent = nextMessageCreated(recipientSocket);
 
+      const clientMessageId = randomUUID();
       const createdMessage = await app.inject({
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${senderToken}` },
-        payload: { content: "Delivered over WebSocket" },
+        payload: {
+          clientMessageId,
+          content: "Delivered over WebSocket",
+        },
       });
       assert.equal(createdMessage.statusCode, 201);
 
@@ -91,6 +112,20 @@ test(
         type: "message.created",
         data: createdMessage.json(),
       });
+
+      const noDuplicateEvent = expectNoMessageCreated(recipientSocket);
+      const retry = await app.inject({
+        method: "POST",
+        url: `/conversations/${conversationId}/messages`,
+        headers: { authorization: `Bearer ${senderToken}` },
+        payload: {
+          clientMessageId,
+          content: "Delivered over WebSocket",
+        },
+      });
+      assert.equal(retry.statusCode, 200);
+      assert.equal(retry.json().id, createdMessage.json().id);
+      await noDuplicateEvent;
     } finally {
       recipientSocket?.terminate();
       if (conversationId) {
