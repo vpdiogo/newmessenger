@@ -26,13 +26,40 @@ flowchart LR
   render -->|TLS PostgreSQL| postgres
 ```
 
+## Current Public MVP
+
+The deployed MVP uses the following public endpoints:
+
+- Frontend: `https://newmessenger-sigma.vercel.app`
+- Backend: `https://newmessenger-api.onrender.com`
+- Health check: `https://newmessenger-api.onrender.com/health`
+
+These URLs are public configuration, not credentials. Do not add database
+connection strings, Supabase keys, or JWT secrets to this document.
+
 ## Provision PostgreSQL
 
-1. Create a Supabase project in a region close to the intended Render region.
-2. In the Supabase Connect dialog, copy the connection string for the selected
-   connection mode. A persistent Render service can use a direct connection;
-   use the session pooler if the service network requires IPv4.
-3. Keep the connection string in Render only as `DATABASE_URL`.
+1. Create a Supabase project in `us-east-1`, close to the Render Virginia
+   region.
+2. Keep the Data API and automatic table exposure disabled. The Fastify
+   backend, not Supabase, is the application's public API.
+3. In the Supabase Connect dialog, select **Session pooler** and copy its URI.
+   This provides an IPv4-compatible connection for the Render service.
+4. Keep the connection string in Render only as `DATABASE_URL`.
+
+## Deployment Order
+
+Use this order for the first deployment:
+
+1. Provision Supabase and obtain the Session Pooler URI without sharing it.
+2. Apply migrations explicitly against Supabase.
+3. Create the Vercel project with `apps/web` as its root directory to reserve
+   its production URL. The first build can report the API as unavailable.
+4. Create the Render Blueprint with the Vercel URL as `CORS_ORIGIN` and the
+   Session Pooler URI as `DATABASE_URL`.
+5. Configure the Render URL as Vercel's production `VITE_API_BASE_URL` and
+   redeploy Vercel.
+6. Run the public smoke QA before announcing the deployment.
 
 ## Deploy the Backend
 
@@ -46,11 +73,16 @@ flowchart LR
 5. Deploy the service and record its HTTPS URL, for example
    `https://newmessenger-api.onrender.com`.
 
+The Blueprint installs the pinned pnpm version through npm before building.
+This avoids relying on the Corepack bundled with the Render Node runtime, which
+can fail package-signature verification for newer pnpm releases.
+
 `render.yaml` deliberately does not run migrations. Apply migrations as an
 explicit release step from a trusted terminal:
 
 ```bash
-read -rsp "Supabase DATABASE_URL: " DATABASE_URL
+printf "Supabase DATABASE_URL: "
+read -r -s DATABASE_URL
 echo
 export DATABASE_URL
 corepack pnpm migration:up
@@ -65,13 +97,14 @@ application start command.
 ## Deploy the Frontend
 
 1. In Vercel, import this GitHub repository as a new project.
-2. Set the project's Root Directory to `apps/web`.
-3. Set `VITE_API_BASE_URL` to the Render HTTPS API URL for the Production
+2. Set the project's Root Directory to `apps/web` and use the Vite preset.
+3. Deploy once to obtain the Vercel production URL.
+4. Set `VITE_API_BASE_URL` to the Render HTTPS API URL for the Production
    environment. This is a public build-time value, so it must not contain a
    secret.
-4. Deploy the project and record its production URL.
 5. Set the Render `CORS_ORIGIN` to that exact Vercel origin, such as
-   `https://newmessenger.vercel.app`, then redeploy the backend.
+   `https://newmessenger-sigma.vercel.app`.
+6. Redeploy Vercel after saving `VITE_API_BASE_URL`.
 
 The browser derives `wss://` from the HTTPS value of `VITE_API_BASE_URL`.
 
@@ -85,8 +118,8 @@ After both deployments are live:
 3. Send a message from one session and confirm it appears in the other without
    refresh.
 4. Confirm browser DevTools show HTTPS API requests and a `wss://` connection.
-5. Disconnect one session temporarily, send a message from the other, restore
-   the network, and confirm history recovery.
+5. Close one client session, send a message from the other, then reopen the
+   client and confirm history recovery.
 
 ## Rollback
 
