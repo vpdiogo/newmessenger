@@ -32,8 +32,9 @@ flowchart LR
 ## Deploy the Backend
 
 1. In Render, create a Blueprint from this repository's `render.yaml`.
-2. Before the first deploy, choose a Render region close to the Supabase
-   project. A service region cannot be changed after creation.
+2. The Blueprint deploys the service in Render's Virginia region, matching the
+   Supabase `us-east-1` project. A service region cannot be changed after
+   creation.
 3. Set `DATABASE_URL` to the Supabase connection string.
 4. Leave the generated `JWT_SECRET` unchanged. It is intentionally not shared
    with Vercel.

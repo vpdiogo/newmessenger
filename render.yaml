@@ -2,6 +2,7 @@ services:
   - type: web
     runtime: node
     name: newmessenger-api
+    region: virginia
     buildCommand: corepack pnpm install --frozen-lockfile && corepack pnpm build
     startCommand: corepack pnpm start
     healthCheckPath: /health
