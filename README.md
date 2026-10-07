@@ -14,9 +14,10 @@ The initial scaffold is complete. It currently provides:
 - PostgreSQL available through Docker Compose.
 - User registration, login, JWT access tokens, and a protected current-user endpoint.
 - Authenticated creation and listing of one-to-one conversations.
+- Persisted messages for direct conversations and chronological message history.
 - ESLint, Prettier, type checking, tests, and production builds.
 
-Message persistence and message delivery are not implemented yet.
+Real-time message delivery is not implemented yet.
 
 ## Stack
 
@@ -97,6 +98,24 @@ curl http://localhost:3000/conversations \
   -H 'authorization: Bearer <accessToken>'
 ```
 
+## Messages
+
+Send a message as a member of a conversation:
+
+```bash
+curl -X POST http://localhost:3000/conversations/<conversation-id>/messages \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <accessToken>' \
+  -d '{"content":"Hello"}'
+```
+
+Read a conversation's message history:
+
+```bash
+curl http://localhost:3000/conversations/<conversation-id>/messages \
+  -H 'authorization: Bearer <accessToken>'
+```
+
 ## Available Commands
 
 ```bash
@@ -132,4 +151,4 @@ docs/
 
 ## Next Increment
 
-The next implementation increment adds persisted messages to direct conversations.
+The next implementation increment delivers persisted messages over WebSocket.

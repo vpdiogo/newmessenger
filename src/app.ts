@@ -5,6 +5,7 @@ import { healthRoutes } from "./modules/health/routes.js";
 import { realtimeRoutes } from "./modules/realtime/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { conversationRoutes } from "./modules/conversations/routes.js";
+import { messageRoutes } from "./modules/messages/routes.js";
 import { authPlugin } from "./plugins/auth.js";
 import { postgresPlugin } from "./plugins/postgres.js";
 
@@ -22,6 +23,7 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(conversationRoutes);
+  await app.register(messageRoutes);
   await app.register(realtimeRoutes);
 
   return app;
