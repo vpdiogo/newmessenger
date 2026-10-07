@@ -31,6 +31,10 @@ test(
       email: `outside-${randomUUID()}@example.test`,
       id: randomUUID(),
     };
+    const thirdUser = {
+      email: `third-${randomUUID()}@example.test`,
+      id: randomUUID(),
+    };
     const firstToken = app.jwt.sign({
       sub: firstUser.id,
       email: firstUser.email,
@@ -44,11 +48,13 @@ test(
       email: outsideUser.email,
     });
     let conversationId: string | undefined;
+    let secondConversationId: string | undefined;
+    const firstClientMessageId = randomUUID();
 
     try {
       await app.postgres.query(
         `INSERT INTO users (id, email, password_hash)
-         VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9)`,
+         VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9), ($10, $11, $12)`,
         [
           firstUser.id,
           firstUser.email,
@@ -58,6 +64,9 @@ test(
           "unused",
           outsideUser.id,
           outsideUser.email,
+          "unused",
+          thirdUser.id,
+          thirdUser.email,
           "unused",
         ],
       );
@@ -73,16 +82,54 @@ test(
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${firstToken}` },
-        payload: { content: "First message" },
+        payload: {
+          clientMessageId: firstClientMessageId,
+          content: "First message",
+        },
       });
       assert.equal(firstMessage.statusCode, 201);
       assert.equal(firstMessage.json().senderId, firstUser.id);
+
+      const repeatedMessage = await app.inject({
+        method: "POST",
+        url: `/conversations/${conversationId}/messages`,
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: {
+          clientMessageId: firstClientMessageId,
+          content: "First message",
+        },
+      });
+      assert.equal(repeatedMessage.statusCode, 200);
+      assert.equal(repeatedMessage.json().id, firstMessage.json().id);
+
+      const secondConversation = await app.inject({
+        method: "POST",
+        url: "/conversations",
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: { participantId: thirdUser.id },
+      });
+      secondConversationId = secondConversation.json().id;
+
+      const retryInAnotherConversation = await app.inject({
+        method: "POST",
+        url: `/conversations/${secondConversationId}/messages`,
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: {
+          clientMessageId: firstClientMessageId,
+          content: "First message",
+        },
+      });
+      assert.equal(retryInAnotherConversation.statusCode, 200);
+      assert.equal(
+        retryInAnotherConversation.json().id,
+        firstMessage.json().id,
+      );
 
       const secondMessage = await app.inject({
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${secondToken}` },
-        payload: { content: "Second message" },
+        payload: { clientMessageId: randomUUID(), content: "Second message" },
       });
       assert.equal(secondMessage.statusCode, 201);
 
@@ -94,27 +141,46 @@ test(
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${firstToken}` },
-        payload: { content: "Persisted after delivery failure" },
+        payload: {
+          clientMessageId: randomUUID(),
+          content: "Persisted after delivery failure",
+        },
       });
       app.realtime.publishMessage = publishMessage;
       assert.equal(persistedMessageAfterDeliveryFailure.statusCode, 201);
 
-      const history = await app.inject({
+      const firstHistoryPage = await app.inject({
         method: "GET",
-        url: `/conversations/${conversationId}/messages`,
+        url: `/conversations/${conversationId}/messages?limit=2`,
         headers: { authorization: `Bearer ${secondToken}` },
       });
-      assert.equal(history.statusCode, 200);
+      assert.equal(firstHistoryPage.statusCode, 200);
       assert.deepEqual(
-        history.json().map((message: { content: string }) => message.content),
-        ["First message", "Second message", "Persisted after delivery failure"],
+        firstHistoryPage
+          .json()
+          .messages.map((message: { content: string }) => message.content),
+        ["First message", "Second message"],
       );
+      assert.equal(firstHistoryPage.json().nextCursor, secondMessage.json().id);
+
+      const secondHistoryPage = await app.inject({
+        method: "GET",
+        url: `/conversations/${conversationId}/messages?limit=2&cursor=${firstHistoryPage.json().nextCursor}`,
+        headers: { authorization: `Bearer ${secondToken}` },
+      });
+      assert.deepEqual(
+        secondHistoryPage
+          .json()
+          .messages.map((message: { content: string }) => message.content),
+        ["Persisted after delivery failure"],
+      );
+      assert.equal(secondHistoryPage.json().nextCursor, null);
 
       const invalidMessage = await app.inject({
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${firstToken}` },
-        payload: { content: " " },
+        payload: { clientMessageId: randomUUID(), content: " " },
       });
       assert.equal(invalidMessage.statusCode, 400);
 
@@ -122,7 +188,10 @@ test(
         method: "POST",
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${outsideToken}` },
-        payload: { content: "Unauthorized message" },
+        payload: {
+          clientMessageId: randomUUID(),
+          content: "Unauthorized message",
+        },
       });
       assert.equal(outsideWrite.statusCode, 404);
 
@@ -131,7 +200,7 @@ test(
         url: `/conversations/${conversationId}/messages`,
         headers: { authorization: `Bearer ${firstToken}` },
       });
-      assert.equal(memberHistoryAfterOutsideWrite.json().length, 3);
+      assert.equal(memberHistoryAfterOutsideWrite.json().messages.length, 3);
 
       const outsideRead = await app.inject({
         method: "GET",
@@ -139,14 +208,34 @@ test(
         headers: { authorization: `Bearer ${outsideToken}` },
       });
       assert.equal(outsideRead.statusCode, 404);
+
+      await app.postgres.query(
+        "DELETE FROM conversation_members WHERE conversation_id = $1 AND user_id = $2",
+        [conversationId, firstUser.id],
+      );
+      const retryAfterMembershipRemoval = await app.inject({
+        method: "POST",
+        url: `/conversations/${conversationId}/messages`,
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: {
+          clientMessageId: firstClientMessageId,
+          content: "First message",
+        },
+      });
+      assert.equal(retryAfterMembershipRemoval.statusCode, 404);
     } finally {
+      if (secondConversationId) {
+        await app.postgres.query("DELETE FROM conversations WHERE id = $1", [
+          secondConversationId,
+        ]);
+      }
       if (conversationId) {
         await app.postgres.query("DELETE FROM conversations WHERE id = $1", [
           conversationId,
         ]);
       }
       await app.postgres.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [
-        [firstUser.id, secondUser.id, outsideUser.id],
+        [firstUser.id, secondUser.id, outsideUser.id, thirdUser.id],
       ]);
       await app.close();
     }

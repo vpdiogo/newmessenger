@@ -7,10 +7,16 @@ import type { Message } from "./types.js";
 
 const conversationParamsSchema = z.object({ conversationId: z.uuid() });
 const createMessageSchema = z.object({
+  clientMessageId: z.uuid(),
   content: z.string().trim().min(1).max(2000),
+});
+const messageHistorySchema = z.object({
+  cursor: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 type MessageRow = {
+  client_message_id: string;
   content: string;
   conversation_id: string;
   created_at: Date;
@@ -20,6 +26,7 @@ type MessageRow = {
 
 function messageResponse(message: MessageRow): Message {
   return {
+    clientMessageId: message.client_message_id,
     id: message.id,
     conversationId: message.conversation_id,
     senderId: message.sender_id,
@@ -53,37 +60,56 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
 
       const conversationId = params.data.conversationId.toLowerCase();
       const senderId = request.user.sub.toLowerCase();
+      if (!(await isConversationMember(app, conversationId, senderId))) {
+        return reply.code(404).send({ message: "Conversation not found" });
+      }
+
       const result = await app.postgres.query<MessageRow>(
-        `INSERT INTO messages (id, conversation_id, sender_id, content)
-         SELECT $1, $2, $3, $4
-         WHERE EXISTS (
-           SELECT 1 FROM conversation_members
-           WHERE conversation_id = $2 AND user_id = $3
-         )
-         RETURNING id, conversation_id, sender_id, content, created_at`,
-        [randomUUID(), conversationId, senderId, input.data.content],
+        `INSERT INTO messages (id, conversation_id, sender_id, client_message_id, content)
+         SELECT $1, $2, $3, $4, $5
+         ON CONFLICT (sender_id, client_message_id) DO NOTHING
+         RETURNING id, conversation_id, sender_id, client_message_id, content, created_at`,
+        [
+          randomUUID(),
+          conversationId,
+          senderId,
+          input.data.clientMessageId.toLowerCase(),
+          input.data.content,
+        ],
       );
-      const message = result.rows[0];
+      let message = result.rows[0];
+      const isNewMessage = Boolean(message);
+      if (!message) {
+        const existingMessage = await app.postgres.query<MessageRow>(
+          `SELECT id, conversation_id, sender_id, client_message_id, content, created_at
+           FROM messages
+           WHERE sender_id = $1 AND client_message_id = $2`,
+          [senderId, input.data.clientMessageId.toLowerCase()],
+        );
+        message = existingMessage.rows[0];
+      }
       if (!message) {
         return reply.code(404).send({ message: "Conversation not found" });
       }
       const response = messageResponse(message);
-      try {
-        const members = await app.postgres.query<{ user_id: string }>(
-          "SELECT user_id FROM conversation_members WHERE conversation_id = $1",
-          [conversationId],
-        );
-        app.realtime.publishMessage(
-          members.rows.map((member) => member.user_id),
-          response,
-        );
-      } catch (error) {
-        app.log.error(
-          { err: error, conversationId, messageId: response.id },
-          "Unable to publish message.created",
-        );
+      if (isNewMessage) {
+        try {
+          const members = await app.postgres.query<{ user_id: string }>(
+            "SELECT user_id FROM conversation_members WHERE conversation_id = $1",
+            [conversationId],
+          );
+          app.realtime.publishMessage(
+            members.rows.map((member) => member.user_id),
+            response,
+          );
+        } catch (error) {
+          app.log.error(
+            { err: error, conversationId, messageId: response.id },
+            "Unable to publish message.created",
+          );
+        }
       }
-      return reply.code(201).send(response);
+      return reply.code(isNewMessage ? 201 : 200).send(response);
     },
   );
 
@@ -92,7 +118,8 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: app.authenticate },
     async (request, reply) => {
       const params = conversationParamsSchema.safeParse(request.params);
-      if (!params.success) {
+      const query = messageHistorySchema.safeParse(request.query);
+      if (!params.success || !query.success) {
         return reply.code(400).send({ message: "Invalid request" });
       }
 
@@ -102,14 +129,36 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(404).send({ message: "Conversation not found" });
       }
 
+      let cursor: Pick<MessageRow, "id"> | undefined;
+      if (query.data.cursor) {
+        const cursorResult = await app.postgres.query<Pick<MessageRow, "id">>(
+          "SELECT id FROM messages WHERE id = $1 AND conversation_id = $2",
+          [query.data.cursor.toLowerCase(), conversationId],
+        );
+        cursor = cursorResult.rows[0];
+        if (!cursor) {
+          return reply.code(400).send({ message: "Invalid request" });
+        }
+      }
+
       const result = await app.postgres.query<MessageRow>(
-        `SELECT id, conversation_id, sender_id, content, created_at
+        `SELECT id, conversation_id, sender_id, client_message_id, content, created_at
          FROM messages
          WHERE conversation_id = $1
-         ORDER BY created_at ASC, id ASC`,
-        [conversationId],
+           AND ($2::uuid IS NULL OR (created_at, id) > (
+             SELECT created_at, id FROM messages
+             WHERE id = $2 AND conversation_id = $1
+           ))
+         ORDER BY created_at ASC, id ASC
+         LIMIT $3`,
+        [conversationId, cursor?.id ?? null, query.data.limit + 1],
       );
-      return result.rows.map(messageResponse);
+      const messages = result.rows.slice(0, query.data.limit);
+      return {
+        messages: messages.map(messageResponse),
+        nextCursor:
+          result.rows.length > query.data.limit ? messages.at(-1)?.id : null,
+      };
     },
   );
 };
