@@ -43,4 +43,18 @@ describe("restoreSession", () => {
       sub: "user-id",
     });
   });
+
+  it("clears an invalid stored token", async () => {
+    localStorage.setItem("newmessenger.access-token", "invalid-token");
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: "Unauthorized" }), {
+        status: 401,
+      }),
+    );
+    const { restoreSession, session } = await import("./session");
+
+    await expect(restoreSession()).resolves.toBe(false);
+    expect(localStorage.getItem("newmessenger.access-token")).toBeNull();
+    expect(session.user).toBeNull();
+  });
 });

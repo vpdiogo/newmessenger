@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { clearSession, session } from "./auth/session";
+import { session } from "./auth/session";
+import { logout } from "./router";
 </script>
 
 <template>
@@ -16,7 +17,7 @@ import { clearSession, session } from "./auth/session";
           <button
             class="text-sm font-medium text-slate-600"
             type="button"
-            @click="clearSession"
+            @click="logout"
           >
             Log out
           </button>

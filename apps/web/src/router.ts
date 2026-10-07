@@ -4,7 +4,7 @@ import HomeView from "./views/HomeView.vue";
 import LoginView from "./views/LoginView.vue";
 import RegisterView from "./views/RegisterView.vue";
 import DashboardView from "./views/DashboardView.vue";
-import { restoreSession } from "./auth/session";
+import { clearSession, restoreSession } from "./auth/session";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -26,3 +26,8 @@ router.beforeEach(async (to) => {
     return { name: "login" };
   }
 });
+
+export async function logout(): Promise<void> {
+  clearSession();
+  await router.push({ name: "login" });
+}
