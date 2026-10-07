@@ -6,6 +6,11 @@ Deploy the Vue application as a Vercel project with `apps/web` as its root
 directory. Deploy the Fastify application as one Render web service using the
 root `render.yaml`. Use Supabase only as managed PostgreSQL.
 
+The initial Render service uses the Free compute plan for MVP demonstration.
+Render can spin down an idle Free service, disconnecting WebSocket clients and
+causing a cold start on the next connection. The client reconnects and recovers
+history, but this plan is not suitable for continuous production availability.
+
 The browser communicates only with the Fastify API. Do not expose a Supabase
 project URL, database URL, or Supabase key to the frontend.
 
