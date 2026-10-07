@@ -125,5 +125,6 @@ defaults to `http://localhost:3000`. The backend permits that origin through
 pnpm exec tsx --version
 pnpm exec tsc6 --version
 pnpm web:typecheck
+pnpm web:test
 pnpm web:build
 ```
