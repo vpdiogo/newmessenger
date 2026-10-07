@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { ApiError } from "../api/client";
-import { loginSession } from "../auth/session";
+import { registerSession } from "../auth/session";
 
 const router = useRouter();
 const email = ref("");
@@ -16,13 +16,13 @@ async function submit(): Promise<void> {
   isSubmitting.value = true;
 
   try {
-    await loginSession({ email: email.value, password: password.value });
+    await registerSession({ email: email.value, password: password.value });
     await router.push({ name: "dashboard" });
   } catch (error) {
     errorMessage.value =
-      error instanceof ApiError && error.status === 401
-        ? "Invalid email or password."
-        : "Unable to log in. Please try again.";
+      error instanceof ApiError && error.status === 409
+        ? "This email is already registered."
+        : "Unable to create your account. Please try again.";
   } finally {
     isSubmitting.value = false;
   }
@@ -32,9 +32,9 @@ async function submit(): Promise<void> {
 <template>
   <section class="mx-auto max-w-md space-y-6">
     <div>
-      <p class="text-sm font-medium text-indigo-600">Welcome back</p>
+      <p class="text-sm font-medium text-indigo-600">Start messaging</p>
       <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-        Log in
+        Create an account
       </h1>
     </div>
     <form class="space-y-4" @submit.prevent="submit">
@@ -52,13 +52,14 @@ async function submit(): Promise<void> {
         Password
         <input
           v-model="password"
-          autocomplete="current-password"
+          autocomplete="new-password"
           class="block w-full rounded-md border border-slate-300 px-3 py-2"
           minlength="12"
           required
           type="password"
         />
       </label>
+      <p class="text-sm text-slate-600">Use at least 12 characters.</p>
       <p v-if="errorMessage" class="text-sm text-rose-700">
         {{ errorMessage }}
       </p>
@@ -67,13 +68,13 @@ async function submit(): Promise<void> {
         :disabled="isSubmitting"
         type="submit"
       >
-        {{ isSubmitting ? "Logging in..." : "Log in" }}
+        {{ isSubmitting ? "Creating account..." : "Create account" }}
       </button>
     </form>
     <p class="text-sm text-slate-600">
-      Need an account?
-      <RouterLink class="font-medium text-indigo-600" to="/register">
-        Register
+      Already have an account?
+      <RouterLink class="font-medium text-indigo-600" to="/login">
+        Log in
       </RouterLink>
     </p>
   </section>

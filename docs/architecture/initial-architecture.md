@@ -10,8 +10,8 @@ The initial roadmap supports authenticated one-to-one text messaging. Messages a
 
 ```mermaid
 flowchart LR
-  alice["Alice client"]
-  bob["Bob client"]
+  alice["Alice web client<br/>Vue"]
+  bob["Bob web client<br/>Vue"]
   app["Node.js modular monolith<br/>Fastify"]
   database[("PostgreSQL")]
   sockets["In-memory connections<br/>Map&lt;userId, Set&lt;WebSocket&gt;&gt;"]
@@ -46,7 +46,11 @@ PostgreSQL is the source of truth for users, conversations, members, and message
 
 ### Clients
 
-Clients use HTTP for request-response operations and WebSocket for server-initiated real-time events. They must tolerate duplicate events and reconnect safely.
+The Vue client uses `fetch` for request-response operations and will use the
+native WebSocket API for server-initiated real-time events. It stores the MVP
+JWT in browser local storage, validates it through `GET /auth/me` during
+startup, and protects authenticated client routes. Clients must tolerate
+duplicate events and reconnect safely.
 
 ## Message Flow
 

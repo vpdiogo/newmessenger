@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "web:dev": "pnpm --filter web dev",
+    "web:test": "pnpm --filter web test",
     "web:typecheck": "pnpm --filter web typecheck",
     "web:build": "pnpm --filter web build",
     "build": "tsc6 -p tsconfig.json",

@@ -22,15 +22,17 @@ The application keeps WebSocket connections in memory, so real-time delivery is
 best-effort and scoped to one application instance. PostgreSQL remains the
 source of truth for message history.
 
-The repository also contains a Vue frontend foundation in `apps/web`. It uses
-HTTP for API requests and will use the native browser WebSocket API for
-real-time events in a later increment.
+The repository also contains a Vue web client in `apps/web`. It supports
+registration, login, local JWT session restoration, logout, and an
+authenticated route. It uses HTTP for API requests and will use the native
+browser WebSocket API for real-time events in a later increment.
 
 ## Stack
 
 - Node.js LTS and TypeScript
 - Fastify and `@fastify/websocket`
 - PostgreSQL 17
+- Vue 3, Vite, Tailwind CSS, and Vue Router
 - Zod for environment validation
 - ESLint and Prettier
 - Node.js test runner through `tsx`
@@ -102,6 +104,11 @@ const socket = new WebSocket("ws://localhost:3000/ws", [
 socket.addEventListener("message", console.log);
 ```
 
+The web client provides the same flow at `/register` and `/login`. For this MVP,
+the access token is stored in browser local storage and validated with
+`GET /auth/me` when the application loads. Production session design should
+revisit this trade-off before handling sensitive user data.
+
 ## Conversations
 
 Create a direct conversation with another user's ID. Repeating the same request
@@ -158,6 +165,7 @@ pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm web:dev
+pnpm web:test
 pnpm web:typecheck
 pnpm web:build
 ```
@@ -185,5 +193,5 @@ docs/
 
 ## Next Increment
 
-The next increment adds registration, login, and local session handling to the
-web client.
+The next increment adds conversation selection and paginated message history to
+the web client.
