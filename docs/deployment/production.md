@@ -41,14 +41,20 @@ flowchart LR
    `https://newmessenger-api.onrender.com`.
 
 `render.yaml` deliberately does not run migrations. Apply migrations as an
-explicit release step after setting `DATABASE_URL` locally:
+explicit release step from a trusted terminal:
 
 ```bash
-DATABASE_URL='<Supabase connection string>' corepack pnpm migration:up
+read -rsp "Supabase DATABASE_URL: " DATABASE_URL
+echo
+export DATABASE_URL
+corepack pnpm migration:up
+unset DATABASE_URL
 ```
 
 Run this command once per release, before deploying application code that
-depends on the new schema. Do not put it in the application start command.
+depends on the new schema. The first command reads the connection string
+without echoing it or adding it to shell history. Do not put migrations in the
+application start command.
 
 ## Deploy the Frontend
 
