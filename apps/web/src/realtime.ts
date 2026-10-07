@@ -52,7 +52,10 @@ export function connectRealtime(
     socket = undefined;
     connectionState.value = "disconnected";
     if (shouldReconnect) {
-      reconnectTimer = window.setTimeout(() => connectRealtime(handler), 1000);
+      reconnectTimer = window.setTimeout(
+        () => connectRealtime(handler, onConnected),
+        1000,
+      );
     }
   });
 }

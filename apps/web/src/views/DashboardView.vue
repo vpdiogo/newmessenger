@@ -115,10 +115,12 @@ async function submitMessage(): Promise<void> {
       request.clientMessageId,
       request.content,
     );
+    if (selectedConversationId.value !== request.conversationId) return;
     messages.value = appendMessages(messages.value, [message]);
     messageContent.value = "";
     pendingMessage.value = null;
   } catch {
+    if (selectedConversationId.value !== request.conversationId) return;
     pendingMessage.value = request;
     errorMessage.value = "Unable to send the message. Please retry.";
   } finally {
