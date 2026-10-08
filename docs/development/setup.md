@@ -144,6 +144,29 @@ Use two browser sessions, such as a normal window and a private window:
    the other session. Restore the network and confirm that the disconnected
    client recovers the missed message after reconnecting.
 
+## Verify Message Recovery and Transcript Layout
+
+- Open a conversation with more than 50 messages. It should display its latest
+  page at the end; **Load earlier messages** adds preceding history without
+  moving the message currently being read.
+- Receive messages while near the end and while reading earlier content. Only
+  the first case should follow the end automatically. Successful local sends
+  should always reveal the sent message.
+- Disconnect one session and send more than 50 messages from the other. After
+  reconnecting, all missed messages should recover without duplicates, while
+  the reader's position is retained when away from the end.
+- Try a draft longer than 2,000 trimmed characters. The composer should keep
+  the text, explain the limit, and block submission. Shortening it should allow
+  sending without reloading.
+- Simulate a failed message request. Retrying unchanged content should reuse
+  its client ID. Editing failed content should leave retry mode and submit the
+  edited text with a new ID. A response lost after persistence must not produce
+  a duplicate on an unchanged retry.
+- At a desktop viewport height around 680px, trigger conversation creation and
+  refresh errors. The conversation list must retain usable scroll space and
+  the page must stay within the viewport. The left pane can scroll internally
+  when its profile, list, form, and feedback exceed the available height.
+
 ## Verify the Toolchain
 
 ```bash

@@ -21,6 +21,13 @@ const secondMessage: Message = {
 };
 
 describe("appendMessages", () => {
+  it("uses message ID ordering for equal timestamps, matching history cursors", () => {
+    const tiedMessage = { ...secondMessage, createdAt: firstMessage.createdAt };
+    expect(appendMessages([tiedMessage], [firstMessage])).toEqual([
+      firstMessage,
+      tiedMessage,
+    ]);
+  });
   it("deduplicates websocket deliveries and keeps messages chronological", () => {
     expect(
       appendMessages([secondMessage], [firstMessage, secondMessage]),

@@ -12,7 +12,9 @@ export function appendMessages(
     messagesById.set(message.id, message);
   }
 
-  return [...messagesById.values()].sort((first, second) =>
-    first.createdAt.localeCompare(second.createdAt),
+  return [...messagesById.values()].sort(
+    (first, second) =>
+      first.createdAt.localeCompare(second.createdAt) ||
+      first.id.localeCompare(second.id),
   );
 }

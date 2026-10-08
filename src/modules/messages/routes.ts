@@ -12,6 +12,7 @@ const createMessageSchema = z.object({
 });
 const messageHistorySchema = z.object({
   cursor: z.uuid().optional(),
+  direction: z.enum(["forward", "backward"]).default("forward"),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -141,23 +142,28 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      const backward = query.data.direction === "backward";
+      const comparison = backward ? "<" : ">";
+      const order = backward ? "DESC" : "ASC";
       const result = await app.postgres.query<MessageRow>(
         `SELECT id, conversation_id, sender_id, client_message_id, content, created_at
          FROM messages
          WHERE conversation_id = $1
-           AND ($2::uuid IS NULL OR (created_at, id) > (
+           AND ($2::uuid IS NULL OR (created_at, id) ${comparison} (
              SELECT created_at, id FROM messages
              WHERE id = $2 AND conversation_id = $1
            ))
-         ORDER BY created_at ASC, id ASC
+         ORDER BY created_at ${order}, id ${order}
          LIMIT $3`,
         [conversationId, cursor?.id ?? null, query.data.limit + 1],
       );
       const messages = result.rows.slice(0, query.data.limit);
+      const nextCursor =
+        result.rows.length > query.data.limit ? messages.at(-1)?.id : null;
+      if (backward) messages.reverse();
       return {
         messages: messages.map(messageResponse),
-        nextCursor:
-          result.rows.length > query.data.limit ? messages.at(-1)?.id : null,
+        nextCursor,
       };
     },
   );

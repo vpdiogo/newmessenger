@@ -29,6 +29,18 @@ describe("getMessageHistory", () => {
     requestJson.mockReset();
   });
 
+  it("requests latest and earlier history through the additive backward direction", async () => {
+    requestJson.mockResolvedValue({ messages: [], nextCursor: null });
+    await getMessageHistory("conversation-id", undefined, "backward");
+    expect(requestJson).toHaveBeenLastCalledWith(
+      "/conversations/conversation-id/messages?limit=50&direction=backward",
+    );
+    await getMessageHistory("conversation-id", "oldest-message-id", "backward");
+    expect(requestJson).toHaveBeenLastCalledWith(
+      "/conversations/conversation-id/messages?limit=50&cursor=oldest-message-id&direction=backward",
+    );
+  });
+
   it("requests the next cursor and returns a validated page", async () => {
     requestJson.mockResolvedValue({
       messages: [
