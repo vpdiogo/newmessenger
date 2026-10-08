@@ -274,21 +274,22 @@ async function loadMessages(): Promise<void> {
           <ul v-else class="space-y-1.5">
             <li v-for="conversation in conversations" :key="conversation.id">
               <button
-                class="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold"
+                class="group flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold"
                 :class="
                   conversation.id === selectedConversationId
-                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20'
-                    : 'text-slate-700 hover:bg-sky-100/80'
+                    ? 'border-sky-200 bg-white/75 text-blue-950 shadow-sm shadow-sky-950/5'
+                    : 'border-transparent text-slate-700 hover:bg-white/55'
                 "
+                :aria-pressed="conversation.id === selectedConversationId"
                 type="button"
                 @click="selectConversation(conversation.id)"
               >
                 <span
                   aria-hidden="true"
-                  class="grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold"
+                  class="grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold"
                   :class="
                     conversation.id === selectedConversationId
-                      ? 'bg-white/20 text-white'
+                      ? 'bg-blue-100 text-blue-700'
                       : 'bg-sky-100 text-sky-700 group-hover:bg-white'
                   "
                   >{{
