@@ -114,14 +114,15 @@ revisit this trade-off before handling sensitive user data.
 
 ## Conversations
 
-Create a direct conversation with another user's ID. Repeating the same request
-returns the existing conversation instead of creating a duplicate.
+Create a direct conversation with another user's email. Repeating the same request
+returns the existing conversation instead of creating a duplicate. The legacy
+`participantId` field remains supported for API compatibility.
 
 ```bash
 curl -X POST http://localhost:3000/conversations \
   -H 'content-type: application/json' \
   -H 'authorization: Bearer <accessToken>' \
-  -d '{"participantId":"<user-id>"}'
+  -d '{"participantEmail":"person@example.com"}'
 ```
 
 List the signed-in user's direct conversations:

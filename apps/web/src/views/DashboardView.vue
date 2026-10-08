@@ -21,7 +21,7 @@ const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
 const messages = ref<Message[]>([]);
 const nextCursor = ref<string | null>(null);
-const participantId = ref("");
+const participantEmail = ref("");
 const messageContent = ref("");
 const pendingMessage = ref<{
   clientMessageId: string;
@@ -70,13 +70,13 @@ async function submitConversation(): Promise<void> {
   isCreatingConversation.value = true;
 
   try {
-    const conversationId = await createConversation(participantId.value);
-    participantId.value = "";
+    const conversationId = await createConversation(participantEmail.value);
+    participantEmail.value = "";
     conversations.value = await getConversations();
     await selectConversation(conversationId);
   } catch {
     errorMessage.value =
-      "Unable to create the conversation. Check the participant ID.";
+      "Unable to create the conversation. Check that the email belongs to a registered user.";
   } finally {
     isCreatingConversation.value = false;
   }
@@ -210,17 +210,17 @@ async function loadMessages(): Promise<void> {
       <form class="space-y-2" @submit.prevent="submitConversation">
         <label
           class="block text-sm font-medium text-slate-700"
-          for="participant-id"
+          for="participant-email"
         >
-          Participant ID
+          Participant email
         </label>
         <input
-          id="participant-id"
-          v-model="participantId"
+          id="participant-email"
+          v-model="participantEmail"
           class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          placeholder="UUID"
+          placeholder="person@example.com"
           required
-          type="text"
+          type="email"
         />
         <button
           class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"

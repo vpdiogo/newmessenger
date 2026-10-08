@@ -136,7 +136,7 @@ defaults to `http://localhost:3000`. The backend permits that origin through
 Use two browser sessions, such as a normal window and a private window:
 
 1. Register two users and sign in to each session.
-2. Create a direct conversation from one account using the other user's UUID.
+2. Create a direct conversation from one account using the other user's email.
 3. In the other session, click **Refresh** and select the new conversation.
 4. Send a message in one session and confirm that it appears in the other
    without a refresh.
