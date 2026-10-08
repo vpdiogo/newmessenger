@@ -17,6 +17,7 @@ import {
   disconnectRealtime,
 } from "../realtime";
 import { session } from "../auth/session";
+import { formatMessageTime, groupTranscriptMessages } from "../transcript";
 
 const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
@@ -45,6 +46,8 @@ const selectedConversation = computed(() =>
     (conversation) => conversation.id === selectedConversationId.value,
   ),
 );
+
+const messageGroups = computed(() => groupTranscriptMessages(messages.value));
 
 onMounted(() => {
   void loadConversations();
@@ -202,12 +205,21 @@ async function loadMessages(): Promise<void> {
 </script>
 
 <template>
-  <section class="grid gap-8 md:grid-cols-[16rem_1fr]">
-    <aside class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-slate-950">Conversations</h1>
+  <section
+    class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)]"
+  >
+    <aside
+      class="min-h-0 rounded-3xl border border-white/80 bg-white/60 p-4 shadow-lg shadow-sky-950/5 backdrop-blur lg:overflow-y-auto sm:p-5"
+    >
+      <div class="mb-5 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
+            Messages
+          </p>
+          <h1 class="mt-1 text-xl font-bold text-blue-950">Conversations</h1>
+        </div>
         <button
-          class="text-sm text-indigo-600 disabled:opacity-60"
+          class="rounded-full px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="isLoadingConversations"
           type="button"
           @click="loadConversations"
@@ -216,22 +228,20 @@ async function loadMessages(): Promise<void> {
         </button>
       </div>
       <section
-        class="space-y-1 rounded-md border border-slate-200 bg-slate-50 p-3"
+        class="mb-5 space-y-1.5 rounded-2xl border border-sky-100 bg-linear-to-br from-sky-50 to-indigo-50 p-4"
       >
-        <h2 class="text-sm font-medium text-slate-700">Your contact email</h2>
-        <p class="break-all text-sm font-medium text-slate-900">
+        <h2 class="text-sm font-bold text-blue-950">Your contact email</h2>
+        <p class="break-all text-sm font-semibold text-slate-800">
           {{ session.user?.email }}
         </p>
-        <p class="text-xs text-slate-500">
+        <p class="text-xs leading-5 text-slate-500">
           Share this email so someone can start a conversation with you.
         </p>
       </section>
-      <form class="space-y-2" @submit.prevent="submitConversation">
-        <h2 class="text-sm font-semibold text-slate-900">
-          Start a conversation
-        </h2>
+      <form class="mb-5 space-y-2.5" @submit.prevent="submitConversation">
+        <h2 class="text-sm font-bold text-blue-950">Start a conversation</h2>
         <label
-          class="block text-sm font-medium text-slate-700"
+          class="block text-sm font-semibold text-slate-700"
           for="participant-email"
         >
           Email address
@@ -239,13 +249,13 @@ async function loadMessages(): Promise<void> {
         <input
           id="participant-email"
           v-model="participantEmail"
-          class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
           placeholder="person@example.com"
           required
           type="email"
         />
         <button
-          class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+          class="w-full rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="isCreatingConversation"
           type="submit"
         >
@@ -254,7 +264,7 @@ async function loadMessages(): Promise<void> {
       </form>
       <p
         v-if="conversationErrorMessage"
-        class="text-sm text-rose-700"
+        class="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
         role="alert"
       >
         {{ conversationErrorMessage }}
@@ -262,112 +272,225 @@ async function loadMessages(): Promise<void> {
       <p v-if="isLoadingConversations" class="text-sm text-slate-500">
         Loading...
       </p>
-      <p v-else-if="conversations.length === 0" class="text-sm text-slate-500">
+      <p
+        v-else-if="conversations.length === 0"
+        class="rounded-2xl border border-dashed border-sky-200 bg-white/50 p-4 text-sm leading-6 text-slate-500"
+      >
         No conversations yet. Start one using a contact email.
       </p>
-      <ul v-else class="space-y-1">
+      <ul v-else class="space-y-1.5">
         <li v-for="conversation in conversations" :key="conversation.id">
           <button
-            class="w-full rounded-md px-3 py-2 text-left text-sm"
+            class="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold"
             :class="
               conversation.id === selectedConversationId
-                ? 'bg-indigo-100 text-indigo-900'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-700 hover:bg-sky-100/80'
             "
             type="button"
             @click="selectConversation(conversation.id)"
           >
-            {{ conversation.participant.email }}
+            <span
+              aria-hidden="true"
+              class="grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold"
+              :class="
+                conversation.id === selectedConversationId
+                  ? 'bg-white/20 text-white'
+                  : 'bg-sky-100 text-sky-700 group-hover:bg-white'
+              "
+              >{{
+                conversation.participant.email.slice(0, 1).toUpperCase()
+              }}</span
+            >
+            <span class="min-w-0 truncate">{{
+              conversation.participant.email
+            }}</span>
           </button>
         </li>
       </ul>
     </aside>
 
     <div
-      class="min-h-80 space-y-4 rounded-lg border border-slate-200 bg-white p-6"
+      class="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur lg:h-full lg:min-h-0"
     >
       <template v-if="selectedConversation">
-        <h2 class="text-xl font-bold text-slate-950">
-          {{ selectedConversation.participant.email }}
-        </h2>
-        <p v-if="isLoadingMessages" class="text-sm text-slate-500">
-          Loading messages...
-        </p>
-        <p v-else-if="messages.length === 0" class="text-sm text-slate-500">
-          No messages yet. Send the first message.
-        </p>
-        <ol v-else class="space-y-3">
-          <li
-            v-for="message in messages"
-            :key="message.id"
-            class="flex"
-            :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"
-          >
-            <div
-              class="max-w-[85%] min-w-0 rounded-md p-3 sm:max-w-[75%]"
-              :class="
-                isOwnMessage(message)
-                  ? 'bg-indigo-100 text-indigo-950'
-                  : 'bg-slate-100 text-slate-900'
-              "
-            >
-              <p class="mb-1 break-all text-xs font-semibold">
-                {{ isOwnMessage(message) ? "You" : selectedConversation.participant.email }}
-              </p>
-              <p class="whitespace-pre-wrap break-words">{{ message.content }}</p>
-              <time class="text-xs text-slate-500">{{
-                new Date(message.createdAt).toLocaleString()
-              }}</time>
-            </div>
-          </li>
-        </ol>
-        <button
-          v-if="nextCursor"
-          class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
-          :disabled="isLoadingMessages"
-          type="button"
-          @click="loadMessages"
+        <header
+          class="flex items-center gap-3 border-b border-sky-100 bg-sky-50/55 px-5 py-4 sm:px-6"
         >
-          Load more messages
-        </button>
-        <form class="space-y-2" @submit.prevent="submitMessage">
-          <label class="block text-sm font-medium text-slate-700" for="message">
-            Message
-          </label>
-          <textarea
-            id="message"
-            v-model="messageContent"
-            class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Write a message"
-            required
-            rows="3"
-          />
-          <div
-            class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"
+          <span
+            aria-hidden="true"
+            class="grid size-11 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-cyan-400 to-blue-600 font-bold text-white shadow-md shadow-sky-500/25"
           >
-            <p class="text-sm text-slate-500">
+            {{
+              selectedConversation.participant.email.slice(0, 1).toUpperCase()
+            }}
+          </span>
+          <div class="min-w-0">
+            <p class="truncate text-lg font-bold text-blue-950">
+              {{ selectedConversation.participant.email }}
+            </p>
+            <p class="mt-0.5 flex items-center gap-2 text-sm text-slate-500">
+              <span
+                aria-hidden="true"
+                class="size-2 rounded-full"
+                :class="
+                  connectionState === 'connected'
+                    ? 'bg-emerald-500'
+                    : 'bg-amber-400'
+                "
+              ></span>
               Connection: {{ connectionState }}
             </p>
+          </div>
+        </header>
+        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-8">
+          <p v-if="isLoadingMessages" class="text-sm text-slate-500">
+            Loading messages...
+          </p>
+          <div
+            v-else-if="messages.length === 0"
+            class="grid min-h-52 place-items-center rounded-2xl border border-dashed border-sky-200 bg-sky-50/55 p-6 text-center"
+          >
+            <div class="max-w-sm">
+              <p class="text-lg font-bold text-blue-950">No messages yet</p>
+              <p class="mt-1 text-sm leading-6 text-slate-500">
+                Send the first message to begin this conversation.
+              </p>
+            </div>
+          </div>
+          <ol v-else class="space-y-5">
+            <li
+              v-for="(group, index) in messageGroups"
+              :key="`${group.dateKey}-${group.senderId}-${group.messages[0]?.id}`"
+              class="min-w-0"
+            >
+              <div
+                v-if="
+                  index === 0 ||
+                  messageGroups[index - 1]?.dateKey !== group.dateKey
+                "
+                class="mb-5 flex items-center gap-3 text-xs font-medium text-slate-400"
+              >
+                <span aria-hidden="true" class="h-px flex-1 bg-sky-100"></span>
+                <time>{{ group.dateLabel }}</time>
+                <span aria-hidden="true" class="h-px flex-1 bg-sky-100"></span>
+              </div>
+              <p
+                class="break-all text-sm font-bold"
+                :class="
+                  isOwnMessage(group.messages[0]!)
+                    ? 'text-blue-700'
+                    : 'text-cyan-700'
+                "
+              >
+                {{
+                  isOwnMessage(group.messages[0]!)
+                    ? "You say:"
+                    : `${selectedConversation.participant.email} says:`
+                }}
+              </p>
+              <div
+                v-for="message in group.messages"
+                :key="message.id"
+                class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4"
+              >
+                <p
+                  class="whitespace-pre-wrap break-words text-[1.02rem] leading-7 text-slate-800"
+                >
+                  {{ message.content }}
+                </p>
+                <time
+                  class="pt-1 text-xs font-medium whitespace-nowrap text-slate-400"
+                  >{{ formatMessageTime(message.createdAt) }}</time
+                >
+              </div>
+            </li>
+          </ol>
+          <button
+            v-if="nextCursor"
+            class="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isLoadingMessages"
+            type="button"
+            @click="loadMessages"
+          >
+            Load more messages
+          </button>
+        </div>
+        <form
+          class="border-t border-sky-100 bg-sky-50/55 p-4 sm:p-5"
+          @submit.prevent="submitMessage"
+        >
+          <label class="sr-only" for="message">Message</label>
+          <div class="flex items-end gap-3">
+            <textarea
+              id="message"
+              v-model="messageContent"
+              class="min-h-11 min-w-0 flex-1 resize-y rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+              placeholder="Type a message..."
+              required
+              rows="1"
+            />
             <button
-              class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+              class="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="isSendingMessage || !messageContent.trim()"
               type="submit"
             >
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m21 3-7.5 18-3.25-7.25L3 10.5 21 3Z"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="m10.25 13.75 4.25-4.25"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
               {{
                 isSendingMessage
                   ? "Sending..."
                   : pendingMessage
                     ? "Retry message"
-                    : "Send message"
+                    : "Send"
               }}
             </button>
           </div>
         </form>
       </template>
-      <p v-else class="text-slate-500">
-        Choose a conversation or start a new one to begin messaging.
-      </p>
-      <p v-if="messageErrorMessage" class="text-sm text-rose-700" role="alert">
+      <div
+        v-else
+        class="grid flex-1 place-items-center bg-linear-to-br from-white/60 to-sky-50/70 p-8 text-center"
+      >
+        <div class="max-w-sm">
+          <span
+            aria-hidden="true"
+            class="mx-auto grid size-14 place-items-center rounded-2xl bg-sky-100 text-2xl text-sky-700"
+            >✦</span
+          >
+          <p class="mt-5 text-xl font-bold text-blue-950">
+            Your conversations live here
+          </p>
+          <p class="mt-2 leading-7 text-slate-500">
+            Choose a conversation or start a new one to begin messaging.
+          </p>
+        </div>
+      </div>
+      <p
+        v-if="messageErrorMessage"
+        class="mx-4 mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 sm:mx-5"
+        role="alert"
+      >
         {{ messageErrorMessage }}
       </p>
     </div>
