@@ -1,0 +1,67 @@
+name: Hotfix
+description: Report an urgent production issue requiring owner-guided correction.
+title: "hotfix: "
+labels:
+  - type:hotfix
+  - interactive
+  - priority:high
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hotfixes are always interactive and high priority. Immediately after creating the
+        issue, apply the matching `area:*` label. Do not add `agent-ready`.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What urgent production behavior must be restored or contained?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe affected users, systems, severity, and current workaround.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction or evidence
+      description: Provide steps, logs, alerts, or other evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: State the minimum safe correction and explicitly excluded changes.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions that prove the incident is mitigated.
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-area
+    attributes:
+      label: Primary area
+      description: Apply the matching `area:*` label after creating the issue.
+      options:
+        - frontend
+        - backend
+        - ux-ui
+        - realtime
+        - platform
+        - documentation
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Add incident links, rollback considerations, risks, or follow-up ideas.

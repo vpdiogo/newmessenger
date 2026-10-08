@@ -4,6 +4,11 @@ title: "chore: "
 labels:
   - type:chore
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Immediately after creating the issue, apply exactly one selected `area:*`,
+        workflow, and `priority:*` label.
   - type: textarea
     id: goal
     attributes:
@@ -62,6 +67,7 @@ body:
         - interactive
         - needs-design
         - agent-ready
+        - blocked
     validations:
       required: true
   - type: dropdown
