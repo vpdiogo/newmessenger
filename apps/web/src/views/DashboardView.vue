@@ -313,7 +313,7 @@ async function loadMessages(): Promise<void> {
     >
       <template v-if="selectedConversation">
         <header
-          class="flex items-center gap-3 border-b border-sky-100 bg-white/65 px-5 py-4 sm:px-6"
+          class="flex items-center gap-3 border-b border-sky-100 bg-sky-50/55 px-5 py-4 sm:px-6"
         >
           <span
             aria-hidden="true"
@@ -327,7 +327,18 @@ async function loadMessages(): Promise<void> {
             <p class="truncate text-lg font-bold text-blue-950">
               {{ selectedConversation.participant.email }}
             </p>
-            <p class="text-sm text-slate-500">Direct conversation</p>
+            <p class="mt-0.5 flex items-center gap-2 text-sm text-slate-500">
+              <span
+                aria-hidden="true"
+                class="size-2 rounded-full"
+                :class="
+                  connectionState === 'connected'
+                    ? 'bg-emerald-500'
+                    : 'bg-amber-400'
+                "
+              ></span>
+              Connection: {{ connectionState }}
+            </p>
           </div>
         </header>
         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-8">
@@ -452,22 +463,6 @@ async function loadMessages(): Promise<void> {
                     : "Send"
               }}
             </button>
-          </div>
-          <div
-            class="mt-3 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"
-          >
-            <p class="flex items-center gap-2 text-sm text-slate-500">
-              <span
-                aria-hidden="true"
-                class="size-2 rounded-full"
-                :class="
-                  connectionState === 'connected'
-                    ? 'bg-emerald-500'
-                    : 'bg-amber-400'
-                "
-              ></span>
-              Connection: {{ connectionState }}
-            </p>
           </div>
         </form>
       </template>
