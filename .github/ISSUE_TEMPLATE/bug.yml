@@ -1,0 +1,83 @@
+name: Bug report
+description: Report behavior that does not match the intended contract.
+title: "fix: "
+labels:
+  - type:bug
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What behavior should be restored or corrected?
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: Describe the observed result, including errors or screenshots when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: State relevant boundaries and what should not change.
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions that prove the bug is fixed.
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-area
+    attributes:
+      label: Primary area
+      description: Apply the matching `area:*` label after creating the issue.
+      options:
+        - frontend
+        - backend
+        - ux-ui
+        - realtime
+        - platform
+        - documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      description: Apply the matching workflow label after creating the issue.
+      options:
+        - interactive
+        - needs-design
+        - agent-ready
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Apply the matching `priority:*` label after creating the issue.
+      options:
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Add links, logs, risks, or related issues.

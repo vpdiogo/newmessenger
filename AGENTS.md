@@ -96,3 +96,13 @@ Stop autonomous work and request owner input when:
 - Record useful out-of-scope observations in the pull request instead of implementing them.
 - If multiple `agent-ready` issues exist, select only the highest-priority one.
 - If priority is unclear, stop and request owner input.
+
+## Issue Taxonomy
+
+Use labels as independent dimensions when creating or triaging issues:
+
+- Apply exactly one type label: `type:feature`, `type:bug`, `type:hotfix`, or `type:chore`.
+- Apply one or more area labels: `area:frontend`, `area:backend`, `area:ux-ui`, `area:realtime`, `area:platform`, or `area:documentation`.
+- Apply exactly one workflow label: `interactive`, `needs-design`, `agent-ready`, or `blocked`.
+- Apply exactly one priority label: `priority:high`, `priority:medium`, or `priority:low`.
+- A `type:hotfix` issue is always `interactive` and `priority:high`; it must never be labeled `agent-ready`.
