@@ -205,9 +205,11 @@ async function loadMessages(): Promise<void> {
 </script>
 
 <template>
-  <section class="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
+  <section
+    class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)]"
+  >
     <aside
-      class="rounded-3xl border border-white/80 bg-white/60 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
+      class="min-h-0 rounded-3xl border border-white/80 bg-white/60 p-4 shadow-lg shadow-sky-950/5 backdrop-blur lg:overflow-y-auto sm:p-5"
     >
       <div class="mb-5 flex items-center justify-between">
         <div>
@@ -309,7 +311,7 @@ async function loadMessages(): Promise<void> {
     </aside>
 
     <div
-      class="flex h-[min(42rem,calc(100dvh-2rem))] min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur"
+      class="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur lg:h-full lg:min-h-0"
     >
       <template v-if="selectedConversation">
         <header

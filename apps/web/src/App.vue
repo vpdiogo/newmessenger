@@ -4,12 +4,12 @@ import { logout } from "./router";
 </script>
 
 <template>
-  <main class="min-h-screen px-4 py-4 sm:px-6 sm:py-8">
+  <main class="h-dvh overflow-hidden px-4 py-4 sm:px-6 sm:py-8">
     <div
-      class="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/65 shadow-2xl shadow-sky-950/10 backdrop-blur-xl sm:min-h-[calc(100vh-4rem)]"
+      class="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/65 shadow-2xl shadow-sky-950/10 backdrop-blur-xl"
     >
       <header
-        class="flex flex-wrap items-center justify-between gap-4 border-b border-sky-100/90 px-5 py-4 sm:px-8"
+        class="shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-sky-100/90 px-5 py-4 sm:px-8"
       >
         <RouterLink
           class="flex items-center gap-3 text-lg font-bold tracking-tight text-blue-950"
@@ -55,7 +55,7 @@ import { logout } from "./router";
           </template>
         </nav>
       </header>
-      <div class="flex-1 p-5 sm:p-8">
+      <div class="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8">
         <RouterView />
       </div>
     </div>
