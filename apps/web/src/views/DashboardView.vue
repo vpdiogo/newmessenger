@@ -280,7 +280,6 @@ async function loadMessages(): Promise<void> {
                     ? 'border-sky-200 bg-white/75 text-blue-950 shadow-sm shadow-sky-950/5'
                     : 'border-transparent text-slate-700 hover:bg-white/55'
                 "
-                :aria-pressed="conversation.id === selectedConversationId"
                 type="button"
                 @click="selectConversation(conversation.id)"
               >
