@@ -277,8 +277,8 @@ async function loadMessages(): Promise<void> {
                 class="group flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold"
                 :class="
                   conversation.id === selectedConversationId
-                    ? 'border-sky-200 bg-white/75 text-blue-950 shadow-sm shadow-sky-950/5'
-                    : 'border-transparent text-slate-700 hover:bg-white/55'
+                    ? 'border-sky-300/70 bg-sky-200/65 text-blue-950 shadow-sm shadow-sky-950/10'
+                    : 'border-transparent bg-transparent text-slate-700 hover:bg-white/25'
                 "
                 type="button"
                 @click="selectConversation(conversation.id)"
