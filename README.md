@@ -1,5 +1,12 @@
 # New Messenger
 
+[![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![TypeScript 6](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Fastify 5](https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white)](https://fastify.dev/)
+[![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
+[![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-2EA44F)](LICENSE)
+
 A minimal real-time messenger built to study the Node.js ecosystem and system design fundamentals.
 
 The project starts as a modular monolith: one Node.js application owns the HTTP API, WebSocket connections, and message persistence. It deliberately introduces infrastructure only when a concrete requirement exists.
@@ -200,3 +207,7 @@ docs/
 
 The next increment evaluates Redis Pub/Sub when a concrete need for delivery
 across multiple backend instances exists.
+
+---
+
+<p align="center">Made with ❤️ by <a href="https://github.com/vpdiogo">Vitor Diogo</a></p>
