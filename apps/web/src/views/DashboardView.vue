@@ -17,6 +17,7 @@ import {
   disconnectRealtime,
 } from "../realtime";
 import { session } from "../auth/session";
+import { formatMessageTime, groupTranscriptMessages } from "../transcript";
 
 const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
@@ -45,6 +46,8 @@ const selectedConversation = computed(() =>
     (conversation) => conversation.id === selectedConversationId.value,
   ),
 );
+
+const messageGroups = computed(() => groupTranscriptMessages(messages.value));
 
 onMounted(() => {
   void loadConversations();
@@ -306,7 +309,7 @@ async function loadMessages(): Promise<void> {
     </aside>
 
     <div
-      class="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur"
+      class="flex h-[min(42rem,calc(100dvh-2rem))] min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur"
     >
       <template v-if="selectedConversation">
         <header
@@ -343,27 +346,51 @@ async function loadMessages(): Promise<void> {
             </div>
           </div>
           <ol v-else class="space-y-5">
-            <li v-for="message in messages" :key="message.id" class="min-w-0">
+            <li
+              v-for="(group, index) in messageGroups"
+              :key="`${group.dateKey}-${group.senderId}-${group.messages[0]?.id}`"
+              class="min-w-0"
+            >
+              <div
+                v-if="
+                  index === 0 ||
+                  messageGroups[index - 1]?.dateKey !== group.dateKey
+                "
+                class="mb-5 flex items-center gap-3 text-xs font-medium text-slate-400"
+              >
+                <span aria-hidden="true" class="h-px flex-1 bg-sky-100"></span>
+                <time>{{ group.dateLabel }}</time>
+                <span aria-hidden="true" class="h-px flex-1 bg-sky-100"></span>
+              </div>
               <p
                 class="break-all text-sm font-bold"
                 :class="
-                  isOwnMessage(message) ? 'text-blue-700' : 'text-cyan-700'
+                  isOwnMessage(group.messages[0]!)
+                    ? 'text-blue-700'
+                    : 'text-cyan-700'
                 "
               >
                 {{
-                  isOwnMessage(message)
+                  isOwnMessage(group.messages[0]!)
                     ? "You say:"
                     : `${selectedConversation.participant.email} says:`
                 }}
               </p>
-              <p
-                class="mt-1 whitespace-pre-wrap break-words text-[1.02rem] leading-7 text-slate-800"
+              <div
+                v-for="message in group.messages"
+                :key="message.id"
+                class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4"
               >
-                {{ message.content }}
-              </p>
-              <time class="mt-1 block text-xs font-medium text-slate-400">{{
-                new Date(message.createdAt).toLocaleString()
-              }}</time>
+                <p
+                  class="whitespace-pre-wrap break-words text-[1.02rem] leading-7 text-slate-800"
+                >
+                  {{ message.content }}
+                </p>
+                <time
+                  class="pt-1 text-xs font-medium whitespace-nowrap text-slate-400"
+                  >{{ formatMessageTime(message.createdAt) }}</time
+                >
+              </div>
             </li>
           </ol>
           <button
