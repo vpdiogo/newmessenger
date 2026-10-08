@@ -4,7 +4,25 @@ const requestJson = vi.hoisted(() => vi.fn());
 
 vi.mock("./client", () => ({ requestJson }));
 
-import { getMessageHistory, sendMessage } from "./conversations";
+import {
+  createConversation,
+  getMessageHistory,
+  sendMessage,
+} from "./conversations";
+
+describe("createConversation", () => {
+  it("sends the participant email", async () => {
+    requestJson.mockResolvedValue({ id: "conversation-id" });
+
+    await expect(
+      createConversation("person@example.test"),
+    ).resolves.toBe("conversation-id");
+    expect(requestJson).toHaveBeenCalledWith("/conversations", {
+      body: JSON.stringify({ participantEmail: "person@example.test" }),
+      method: "POST",
+    });
+  });
+});
 
 describe("getMessageHistory", () => {
   beforeEach(() => {

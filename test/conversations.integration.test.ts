@@ -53,7 +53,7 @@ test(
         method: "POST",
         url: "/conversations",
         headers: { authorization: `Bearer ${firstToken}` },
-        payload: { participantId: secondUser.id },
+        payload: { participantEmail: secondUser.email.toUpperCase() },
       });
       assert.equal(createdConversation.statusCode, 201);
       const conversationId = createdConversation.json().id;
@@ -90,6 +90,17 @@ test(
       });
       assert.equal(invalidConversation.statusCode, 400);
 
+      const ambiguousParticipant = await app.inject({
+        method: "POST",
+        url: "/conversations",
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: {
+          participantEmail: secondUser.email,
+          participantId: secondUser.id,
+        },
+      });
+      assert.equal(ambiguousParticipant.statusCode, 400);
+
       const missingParticipant = await app.inject({
         method: "POST",
         url: "/conversations",
@@ -97,6 +108,14 @@ test(
         payload: { participantId: randomUUID() },
       });
       assert.equal(missingParticipant.statusCode, 404);
+
+      const missingParticipantEmail = await app.inject({
+        method: "POST",
+        url: "/conversations",
+        headers: { authorization: `Bearer ${firstToken}` },
+        payload: { participantEmail: "missing@example.test" },
+      });
+      assert.equal(missingParticipantEmail.statusCode, 404);
     } finally {
       await app.postgres.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [
         [firstUser.id, secondUser.id],

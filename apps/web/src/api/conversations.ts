@@ -31,10 +31,10 @@ export async function sendMessage(
 }
 
 export async function createConversation(
-  participantId: string,
+  participantEmail: string,
 ): Promise<string> {
   const data = await requestJson("/conversations", {
-    body: JSON.stringify({ participantId }),
+    body: JSON.stringify({ participantEmail }),
     method: "POST",
   });
 

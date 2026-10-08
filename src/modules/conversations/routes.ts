@@ -4,7 +4,15 @@ import type { FastifyPluginAsync } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 
-const createConversationSchema = z.object({ participantId: z.uuid() });
+const createConversationSchema = z
+  .object({
+    participantEmail: z.email().optional(),
+    participantId: z.uuid().optional(),
+  })
+  .refine(
+    ({ participantEmail, participantId }) =>
+      (participantEmail === undefined) !== (participantId === undefined),
+  );
 
 type ConversationRow = {
   created_at: Date;
@@ -70,7 +78,19 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const userId = request.user.sub.toLowerCase();
-      const participantId = input.data.participantId.toLowerCase();
+      let participantId = input.data.participantId?.toLowerCase();
+      if (input.data.participantEmail) {
+        const participant = await app.postgres.query<{ id: string }>(
+          "SELECT id FROM users WHERE email = $1",
+          [input.data.participantEmail.toLowerCase()],
+        );
+        participantId = participant.rows[0]?.id;
+      }
+
+      if (!participantId) {
+        return reply.code(404).send({ message: "Participant not found" });
+      }
+
       if (participantId === userId) {
         return reply.code(400).send({ message: "Invalid request" });
       }
