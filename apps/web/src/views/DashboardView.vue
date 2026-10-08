@@ -206,7 +206,7 @@ async function loadMessages(): Promise<void> {
 
 <template>
   <section
-    class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_15rem]"
+    class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
   >
     <aside
       class="flex min-h-0 flex-col rounded-3xl border border-white/80 bg-white/60 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
@@ -339,7 +339,7 @@ async function loadMessages(): Promise<void> {
     >
       <template v-if="selectedConversation">
         <header
-          class="flex items-center gap-3 border-b border-sky-100 bg-sky-50/55 px-5 py-4 sm:px-6 xl:hidden"
+          class="flex items-center gap-3 border-b border-sky-100 bg-sky-50/55 px-5 py-4 sm:px-6"
         >
           <span
             aria-hidden="true"
@@ -532,7 +532,7 @@ async function loadMessages(): Promise<void> {
               selectedConversation.participant.email.slice(0, 1).toUpperCase()
             }}
           </span>
-          <p class="mt-4 break-all text-base font-bold text-blue-950">
+          <p class="mt-4 break-all text-sm font-bold text-blue-950">
             {{ selectedConversation.participant.email }}
           </p>
           <p class="mt-2 inline-flex items-center gap-2 text-sm text-slate-500">
