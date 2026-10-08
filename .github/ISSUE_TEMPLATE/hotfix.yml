@@ -10,7 +10,8 @@ body:
     attributes:
       value: |
         Hotfixes are always interactive and high priority. Immediately after creating the
-        issue, apply the matching `area:*` label. Do not add `agent-ready`.
+        issue, apply the matching `area:*` label and any additional applicable areas. Do
+        not add `agent-ready`.
   - type: textarea
     id: goal
     attributes:

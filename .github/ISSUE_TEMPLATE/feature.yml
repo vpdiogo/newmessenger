@@ -8,7 +8,8 @@ body:
     attributes:
       value: |
         Describe the outcome, not only an implementation idea. Immediately after creating
-        the issue, apply exactly one selected `area:*`, workflow, and `priority:*` label.
+        the issue, apply the selected `area:*` label and any additional applicable areas,
+        plus exactly one workflow and `priority:*` label.
   - type: textarea
     id: goal
     attributes:
