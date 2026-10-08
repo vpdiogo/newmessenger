@@ -16,6 +16,7 @@ import {
   connectionState,
   disconnectRealtime,
 } from "../realtime";
+import { session } from "../auth/session";
 
 const conversations = ref<Conversation[]>([]);
 const selectedConversationId = ref<string | null>(null);
@@ -207,6 +208,17 @@ async function loadMessages(): Promise<void> {
           Refresh
         </button>
       </div>
+      <section
+        class="space-y-1 rounded-md border border-slate-200 bg-slate-50 p-3"
+      >
+        <h2 class="text-sm font-medium text-slate-700">Your contact email</h2>
+        <p class="break-all text-sm font-medium text-slate-900">
+          {{ session.user?.email }}
+        </p>
+        <p class="text-xs text-slate-500">
+          Share this email so someone can start a conversation with you.
+        </p>
+      </section>
       <form class="space-y-2" @submit.prevent="submitConversation">
         <label
           class="block text-sm font-medium text-slate-700"
