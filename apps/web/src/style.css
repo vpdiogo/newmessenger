@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  color: #0f172a;
-  background: #f8fafc;
+  color: #172554;
+  background: #dbeafe;
   font-family:
-    Inter,
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -17,8 +16,41 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgb(186 230 253 / 80%),
+      transparent 35rem
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgb(199 210 254 / 70%),
+      transparent 32rem
+    ),
+    linear-gradient(135deg, #eff6ff, #e0f2fe 48%, #eef2ff);
 }
 
 #app {
   min-height: 100vh;
+}
+
+button,
+a,
+input,
+textarea {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(14 165 233 / 55%);
+  outline-offset: 3px;
 }
