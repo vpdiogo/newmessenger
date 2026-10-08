@@ -209,11 +209,9 @@ async function loadMessages(): Promise<void> {
     class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
   >
     <aside
-      class="flex min-h-0 flex-col rounded-3xl border border-white/80 bg-white/60 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
+      class="flex min-h-0 flex-col rounded-3xl border border-white/80 bg-sky-50/55 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
     >
-      <section
-        class="mb-5 rounded-2xl border border-sky-100 bg-linear-to-br from-sky-50 to-indigo-50 p-4"
-      >
+      <section class="mb-5 border-b border-sky-100 pb-5">
         <div class="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -222,13 +220,20 @@ async function loadMessages(): Promise<void> {
             {{ session.user?.email?.slice(0, 1).toUpperCase() }}
           </span>
           <div class="min-w-0">
-            <p
-              class="text-xs font-bold uppercase tracking-[0.16em] text-sky-700"
-            >
-              Your address
-            </p>
-            <p class="mt-1 truncate text-sm font-bold text-blue-950">
+            <p class="truncate text-sm font-bold text-blue-950">
               {{ session.user?.email }}
+            </p>
+            <p class="mt-1 flex items-center gap-2 text-sm text-slate-500">
+              <span
+                aria-hidden="true"
+                class="size-2 rounded-full"
+                :class="
+                  connectionState === 'connected'
+                    ? 'bg-emerald-500'
+                    : 'bg-amber-400'
+                "
+              ></span>
+              Connection: {{ connectionState }}
             </p>
           </div>
         </div>
@@ -237,40 +242,6 @@ async function loadMessages(): Promise<void> {
         </p>
       </section>
 
-      <form
-        class="mb-5 shrink-0 space-y-2.5"
-        @submit.prevent="submitConversation"
-      >
-        <h2 class="text-sm font-bold text-blue-950">Start a conversation</h2>
-        <label
-          class="block text-sm font-semibold text-slate-700"
-          for="participant-email"
-        >
-          Email address
-        </label>
-        <input
-          id="participant-email"
-          v-model="participantEmail"
-          class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
-          placeholder="person@example.com"
-          required
-          type="email"
-        />
-        <button
-          class="w-full rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isCreatingConversation"
-          type="submit"
-        >
-          {{ isCreatingConversation ? "Creating..." : "Start conversation" }}
-        </button>
-      </form>
-      <p
-        v-if="conversationErrorMessage"
-        class="mb-4 shrink-0 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
-        role="alert"
-      >
-        {{ conversationErrorMessage }}
-      </p>
       <section class="flex min-h-0 flex-1 flex-col">
         <div class="mb-3 flex items-center justify-between">
           <div>
@@ -332,6 +303,35 @@ async function loadMessages(): Promise<void> {
           </ul>
         </div>
       </section>
+
+      <form
+        class="mt-5 shrink-0 border-t border-sky-100 pt-4"
+        @submit.prevent="submitConversation"
+      >
+        <label class="sr-only" for="participant-email">Email address</label>
+        <input
+          id="participant-email"
+          v-model="participantEmail"
+          class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+          placeholder="person@example.com"
+          required
+          type="email"
+        />
+        <button
+          class="mt-2.5 w-full rounded-2xl bg-blue-600 px-3 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isCreatingConversation"
+          type="submit"
+        >
+          {{ isCreatingConversation ? "Creating..." : "Start a conversation" }}
+        </button>
+        <p
+          v-if="conversationErrorMessage"
+          class="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+          role="alert"
+        >
+          {{ conversationErrorMessage }}
+        </p>
+      </form>
     </aside>
 
     <div
@@ -352,18 +352,6 @@ async function loadMessages(): Promise<void> {
           <div class="min-w-0">
             <p class="truncate text-lg font-bold text-blue-950">
               {{ selectedConversation.participant.email }}
-            </p>
-            <p class="mt-0.5 flex items-center gap-2 text-sm text-slate-500">
-              <span
-                aria-hidden="true"
-                class="size-2 rounded-full"
-                :class="
-                  connectionState === 'connected'
-                    ? 'bg-emerald-500'
-                    : 'bg-amber-400'
-                "
-              ></span>
-              Connection: {{ connectionState }}
             </p>
           </div>
         </header>
