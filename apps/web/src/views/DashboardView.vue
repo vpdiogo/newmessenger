@@ -36,6 +36,10 @@ const isSendingMessage = ref(false);
 const conversationErrorMessage = ref<string | null>(null);
 const messageErrorMessage = ref<string | null>(null);
 
+function isOwnMessage(message: Message): boolean {
+  return message.senderId === session.user?.sub;
+}
+
 const selectedConversation = computed(() =>
   conversations.value.find(
     (conversation) => conversation.id === selectedConversationId.value,
@@ -296,12 +300,25 @@ async function loadMessages(): Promise<void> {
           <li
             v-for="message in messages"
             :key="message.id"
-            class="rounded-md bg-slate-50 p-3"
+            class="flex"
+            :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"
           >
-            <p class="text-slate-900">{{ message.content }}</p>
-            <time class="text-xs text-slate-500">{{
-              new Date(message.createdAt).toLocaleString()
-            }}</time>
+            <div
+              class="max-w-[85%] min-w-0 rounded-md p-3 sm:max-w-[75%]"
+              :class="
+                isOwnMessage(message)
+                  ? 'bg-indigo-100 text-indigo-950'
+                  : 'bg-slate-100 text-slate-900'
+              "
+            >
+              <p class="mb-1 break-all text-xs font-semibold">
+                {{ isOwnMessage(message) ? "You" : selectedConversation.participant.email }}
+              </p>
+              <p class="whitespace-pre-wrap break-words">{{ message.content }}</p>
+              <time class="text-xs text-slate-500">{{
+                new Date(message.createdAt).toLocaleString()
+              }}</time>
+            </div>
           </li>
         </ol>
         <button
