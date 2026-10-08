@@ -1,0 +1,88 @@
+name: Chore
+description: Propose maintenance, quality, documentation, or developer-experience work.
+title: "chore: "
+labels:
+  - type:chore
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Immediately after creating the issue, apply the selected `area:*` label and any
+        additional applicable areas, plus exactly one workflow and `priority:*` label.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What maintainability, quality, or operational outcome should exist?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this useful now? Include relevant current behavior or constraints.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: State what is included and explicitly excluded.
+      placeholder: |
+        Included:
+        - ...
+
+        Excluded:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions that prove this issue is complete.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-area
+    attributes:
+      label: Primary area
+      description: Apply the matching `area:*` label after creating the issue.
+      options:
+        - frontend
+        - backend
+        - ux-ui
+        - realtime
+        - platform
+        - documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      description: Apply the matching workflow label after creating the issue.
+      options:
+        - interactive
+        - needs-design
+        - agent-ready
+        - blocked
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Apply the matching `priority:*` label after creating the issue.
+      options:
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Add links, risks, or follow-up ideas.
