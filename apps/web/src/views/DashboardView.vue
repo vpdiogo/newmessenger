@@ -33,7 +33,8 @@ const isLoadingConversations = ref(true);
 const isLoadingMessages = ref(false);
 const isCreatingConversation = ref(false);
 const isSendingMessage = ref(false);
-const errorMessage = ref<string | null>(null);
+const conversationErrorMessage = ref<string | null>(null);
+const messageErrorMessage = ref<string | null>(null);
 
 const selectedConversation = computed(() =>
   conversations.value.find(
@@ -52,7 +53,7 @@ onBeforeUnmount(disconnectRealtime);
 
 async function loadConversations(): Promise<void> {
   isLoadingConversations.value = true;
-  errorMessage.value = null;
+  conversationErrorMessage.value = null;
 
   try {
     conversations.value = await getConversations();
@@ -60,14 +61,15 @@ async function loadConversations(): Promise<void> {
     const firstConversation = conversations.value[0];
     if (firstConversation) await selectConversation(firstConversation.id);
   } catch {
-    errorMessage.value = "Unable to load conversations. Please try again.";
+    conversationErrorMessage.value =
+      "Unable to load conversations. Please try again.";
   } finally {
     isLoadingConversations.value = false;
   }
 }
 
 async function submitConversation(): Promise<void> {
-  errorMessage.value = null;
+  conversationErrorMessage.value = null;
   isCreatingConversation.value = true;
 
   try {
@@ -76,7 +78,7 @@ async function submitConversation(): Promise<void> {
     conversations.value = await getConversations();
     await selectConversation(conversationId);
   } catch {
-    errorMessage.value =
+    conversationErrorMessage.value =
       "Unable to create the conversation. Check that the email belongs to a registered user.";
   } finally {
     isCreatingConversation.value = false;
@@ -109,7 +111,7 @@ async function submitMessage(): Promise<void> {
     } as const);
 
   isSendingMessage.value = true;
-  errorMessage.value = null;
+  messageErrorMessage.value = null;
   try {
     const message = await sendMessage(
       request.conversationId,
@@ -123,7 +125,7 @@ async function submitMessage(): Promise<void> {
   } catch {
     if (selectedConversationId.value !== request.conversationId) return;
     pendingMessage.value = request;
-    errorMessage.value = "Unable to send the message. Please retry.";
+    messageErrorMessage.value = "Unable to send the message. Please retry.";
   } finally {
     isSendingMessage.value = false;
   }
@@ -147,7 +149,7 @@ async function recoverMessages(): Promise<void> {
     messages.value = appendMessages(messages.value, history.messages);
     nextCursor.value = history.nextCursor;
   } catch {
-    errorMessage.value = "Unable to recover messages. Please refresh.";
+    messageErrorMessage.value = "Unable to recover messages. Please refresh.";
   }
 }
 
@@ -158,7 +160,7 @@ async function loadMessages(): Promise<void> {
   const cursor = nextCursor.value;
   let applied = false;
   isLoadingMessages.value = true;
-  errorMessage.value = null;
+  messageErrorMessage.value = null;
   try {
     const history = await getMessageHistory(
       conversationId,
@@ -178,7 +180,7 @@ async function loadMessages(): Promise<void> {
     nextCursor.value = history.nextCursor;
     applied = true;
   } catch {
-    errorMessage.value = "Unable to load messages. Please try again.";
+    messageErrorMessage.value = "Unable to load messages. Please try again.";
   } finally {
     if (
       applied ||
@@ -201,11 +203,12 @@ async function loadMessages(): Promise<void> {
       <div class="flex items-center justify-between">
         <h1 class="text-xl font-bold text-slate-950">Conversations</h1>
         <button
-          class="text-sm text-indigo-600"
+          class="text-sm text-indigo-600 disabled:opacity-60"
+          :disabled="isLoadingConversations"
           type="button"
           @click="loadConversations"
         >
-          Refresh
+          {{ isLoadingConversations ? "Refreshing..." : "Refresh" }}
         </button>
       </div>
       <section
@@ -220,11 +223,14 @@ async function loadMessages(): Promise<void> {
         </p>
       </section>
       <form class="space-y-2" @submit.prevent="submitConversation">
+        <h2 class="text-sm font-semibold text-slate-900">
+          Start a conversation
+        </h2>
         <label
           class="block text-sm font-medium text-slate-700"
           for="participant-email"
         >
-          Participant email
+          Email address
         </label>
         <input
           id="participant-email"
@@ -239,14 +245,21 @@ async function loadMessages(): Promise<void> {
           :disabled="isCreatingConversation"
           type="submit"
         >
-          {{ isCreatingConversation ? "Creating..." : "New conversation" }}
+          {{ isCreatingConversation ? "Creating..." : "Start conversation" }}
         </button>
       </form>
+      <p
+        v-if="conversationErrorMessage"
+        class="text-sm text-rose-700"
+        role="alert"
+      >
+        {{ conversationErrorMessage }}
+      </p>
       <p v-if="isLoadingConversations" class="text-sm text-slate-500">
         Loading...
       </p>
       <p v-else-if="conversations.length === 0" class="text-sm text-slate-500">
-        No conversations yet.
+        No conversations yet. Start one using a contact email.
       </p>
       <ul v-else class="space-y-1">
         <li v-for="conversation in conversations" :key="conversation.id">
@@ -277,7 +290,7 @@ async function loadMessages(): Promise<void> {
           Loading messages...
         </p>
         <p v-else-if="messages.length === 0" class="text-sm text-slate-500">
-          No messages yet.
+          No messages yet. Send the first message.
         </p>
         <ol v-else class="space-y-3">
           <li
@@ -312,7 +325,9 @@ async function loadMessages(): Promise<void> {
             required
             rows="3"
           />
-          <div class="flex items-center justify-between gap-3">
+          <div
+            class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"
+          >
             <p class="text-sm text-slate-500">
               Connection: {{ connectionState }}
             </p>
@@ -332,9 +347,11 @@ async function loadMessages(): Promise<void> {
           </div>
         </form>
       </template>
-      <p v-else class="text-slate-500">Select or create a conversation.</p>
-      <p v-if="errorMessage" class="text-sm text-rose-700">
-        {{ errorMessage }}
+      <p v-else class="text-slate-500">
+        Choose a conversation or start a new one to begin messaging.
+      </p>
+      <p v-if="messageErrorMessage" class="text-sm text-rose-700" role="alert">
+        {{ messageErrorMessage }}
       </p>
     </div>
   </section>
