@@ -520,7 +520,7 @@ async function loadMessages(): Promise<void> {
     </div>
 
     <aside
-      class="hidden min-h-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/60 shadow-lg shadow-sky-950/5 backdrop-blur xl:flex"
+      class="hidden min-h-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-sky-50/55 shadow-lg shadow-sky-950/5 backdrop-blur xl:flex"
     >
       <template v-if="selectedConversation">
         <div class="border-b border-sky-100 bg-sky-50/55 p-6 text-center">
@@ -534,18 +534,6 @@ async function loadMessages(): Promise<void> {
           </span>
           <p class="mt-4 break-all text-sm font-bold text-blue-950">
             {{ selectedConversation.participant.email }}
-          </p>
-          <p class="mt-2 inline-flex items-center gap-2 text-sm text-slate-500">
-            <span
-              aria-hidden="true"
-              class="size-2 rounded-full"
-              :class="
-                connectionState === 'connected'
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-400'
-              "
-            ></span>
-            Connection: {{ connectionState }}
           </p>
         </div>
       </template>
