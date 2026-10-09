@@ -179,6 +179,8 @@ describe("message composer presentation boundary", () => {
     expect(html).toContain('for="message"');
     expect(html).toContain('aria-describedby="message-limit"');
     expect(html).toContain('aria-invalid="false"');
+    expect(html).toContain("resize-none");
+    expect(html).toContain("max-h-32");
     expect(html).toContain("2,000 characters");
     expect(html).toContain("Retry message");
     expect(html).not.toMatch(/<button[^>]*\sdisabled(?:\s|=|>)/);

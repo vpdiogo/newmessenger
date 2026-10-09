@@ -22,9 +22,17 @@ import { useConversations } from "../useConversations";
 import { useConversationRoute } from "../useConversationRoute";
 import { useTranscriptScroll } from "../useTranscriptScroll";
 import { useConversationAnnouncements } from "../useConversationAnnouncements";
+import type { MessageSubmissionResult } from "../useConversationMessages";
 
 const router = useRouter();
 const transcript = ref<HTMLElement | null>(null);
+type MessageComposerInstance = {
+  completeSubmission(
+    result: MessageSubmissionResult,
+    attemptId: number | null,
+  ): Promise<void>;
+};
+const composer = ref<MessageComposerInstance | null>(null);
 const conversationData = useConversations();
 const {
   conversations,
@@ -59,7 +67,7 @@ const {
   contentError,
   messageErrorMessage,
   historyError,
-  submitMessage,
+  submitMessage: submitMessageRequest,
   loadEarlierMessages,
   recoverMessages,
   retryHistory,
@@ -89,6 +97,11 @@ async function submitConversation(): Promise<void> {
   } finally {
     isNavigatingCreation.value = false;
   }
+}
+
+async function submitMessage(attemptId: number | null): Promise<void> {
+  const result = await submitMessageRequest();
+  await composer.value?.completeSubmission(result, attemptId);
 }
 
 function setTranscriptViewport(element: HTMLElement | null): void {
@@ -185,7 +198,9 @@ onBeforeUnmount(() => {
           @viewport="setTranscriptViewport"
         />
         <MessageComposer
+          ref="composer"
           v-model="messageContent"
+          :conversation-id="selectedConversation.id"
           :is-sending-message="isSendingMessage"
           :is-loading-messages="isLoadingMessages"
           :content-length="contentLength"
