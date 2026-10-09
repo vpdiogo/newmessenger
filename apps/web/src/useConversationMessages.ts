@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 import { ApiError } from "./api/client";
 import {
@@ -16,13 +16,21 @@ type PendingMessage = {
   conversationId: string;
 };
 
-type ScrollMode = "end" | "follow" | "preserve";
+export type MessageUpdateSource =
+  "initial" | "earlier" | "realtime" | "recovery" | "local-send";
+
+export type MessageUpdateEffects = {
+  beforeMessagesUpdate?: (
+    source: MessageUpdateSource,
+    isCurrent: () => boolean,
+  ) => () => Promise<void>;
+  onIncomingMessages?: (messages: Message[]) => void;
+};
 
 export function useConversationMessages(
-  transcript: Ref<HTMLElement | null>,
-  onIncomingMessages?: (messages: Message[]) => void,
+  selectedConversationId: Readonly<Ref<string | null>>,
+  effects: MessageUpdateEffects = {},
 ) {
-  const selectedConversationId = ref<string | null>(null);
   const messages = ref<Message[]>([]);
   const earlierCursor = ref<string | null>(null);
   const messageContent = ref("");
@@ -33,6 +41,7 @@ export function useConversationMessages(
   const sendError = ref<string | null>(null);
   const historyError = ref<string | null>(null);
   let selectionVersion = 0;
+  let disposed = false;
   let draftVersion = 0;
   let recovering = false;
   let recoveryRequested = false;
@@ -63,64 +72,31 @@ export function useConversationMessages(
   );
 
   function isCurrent(version: number): boolean {
-    return version === selectionVersion;
+    return !disposed && version === selectionVersion;
   }
 
   async function applyMessages(
     incoming: Message[],
     version: number,
-    mode: ScrollMode,
-    announce = false,
+    source: MessageUpdateSource,
   ): Promise<void> {
     if (!isCurrent(version)) return;
     const knownIds = new Set(messages.value.map((message) => message.id));
-    const novelMessages = announce
-      ? incoming.filter((message) => {
-          if (knownIds.has(message.id)) return false;
-          knownIds.add(message.id);
-          return true;
-        })
-      : [];
-    const viewport = transcript.value;
-    const scrollTop = viewport?.scrollTop ?? 0;
-    const wasNearEnd =
-      !viewport ||
-      viewport.scrollHeight - viewport.clientHeight - scrollTop <= 64;
-    const anchor =
-      mode === "preserve" && viewport
-        ? Array.from(
-            viewport.querySelectorAll<HTMLElement>("[data-message-id]"),
-          ).find(
-            (element) =>
-              element.getBoundingClientRect().bottom >
-              viewport.getBoundingClientRect().top,
-          )
-        : undefined;
-    const anchorOffset = anchor?.getBoundingClientRect().top;
-    const anchorId = anchor?.dataset.messageId;
-
+    const novelMessages =
+      source === "realtime" || source === "recovery"
+        ? incoming.filter((message) => {
+            if (knownIds.has(message.id)) return false;
+            knownIds.add(message.id);
+            return true;
+          })
+        : [];
+    const afterRender = effects.beforeMessagesUpdate?.(source, () =>
+      isCurrent(version),
+    );
     messages.value = appendMessages(messages.value, incoming);
-    await nextTick();
+    await afterRender?.();
     if (!isCurrent(version)) return;
-    if (novelMessages.length) onIncomingMessages?.(novelMessages);
-    if (!viewport || viewport !== transcript.value) return;
-
-    if (mode === "end") {
-      viewport.scrollTop = viewport.scrollHeight;
-    } else if (mode === "preserve" && anchorId && anchorOffset !== undefined) {
-      const currentAnchor = Array.from(
-        viewport.querySelectorAll<HTMLElement>("[data-message-id]"),
-      ).find((element) => element.dataset.messageId === anchorId);
-      if (currentAnchor)
-        viewport.scrollTop +=
-          currentAnchor.getBoundingClientRect().top - anchorOffset;
-    } else if (
-      mode === "follow" &&
-      wasNearEnd &&
-      viewport.scrollTop === scrollTop
-    ) {
-      viewport.scrollTop = viewport.scrollHeight;
-    }
+    if (novelMessages.length) effects.onIncomingMessages?.(novelMessages);
   }
 
   async function loadLatestMessages(version: number): Promise<void> {
@@ -140,7 +116,7 @@ export function useConversationMessages(
       recoveryCursor = history.messages.at(-1)?.id;
       historyLoaded = true;
       isLoadingMessages.value = false;
-      await applyMessages(history.messages, version, "end");
+      await applyMessages(history.messages, version, "initial");
     } catch {
       if (isCurrent(version)) {
         historyFailure = "latest";
@@ -158,11 +134,8 @@ export function useConversationMessages(
     }
   }
 
-  async function selectConversation(
-    conversationId: string | null,
-  ): Promise<void> {
+  async function loadSelectedConversation(): Promise<void> {
     const version = ++selectionVersion;
-    selectedConversationId.value = conversationId;
     messages.value = [];
     earlierCursor.value = null;
     pendingMessage.value = null;
@@ -202,7 +175,7 @@ export function useConversationMessages(
       );
       if (!isCurrent(version)) return;
       earlierCursor.value = history.nextCursor;
-      await applyMessages(history.messages, version, "preserve");
+      await applyMessages(history.messages, version, "earlier");
     } catch {
       if (isCurrent(version)) {
         historyFailure = "earlier";
@@ -243,7 +216,7 @@ export function useConversationMessages(
       if (!isCurrent(version)) return;
       if (draftVersion === submittedDraftVersion) messageContent.value = "";
       pendingMessage.value = null;
-      await applyMessages([message], version, "end");
+      await applyMessages([message], version, "local-send");
     } catch (error) {
       if (!isCurrent(version) || draftVersion !== submittedDraftVersion) return;
       if (
@@ -275,7 +248,7 @@ export function useConversationMessages(
 
   function handleMessageCreated(message: Message): void {
     if (message.conversationId !== selectedConversationId.value) return;
-    void applyMessages([message], selectionVersion, "follow", true);
+    void applyMessages([message], selectionVersion, "realtime");
   }
 
   async function recoverMessages(): Promise<void> {
@@ -298,7 +271,7 @@ export function useConversationMessages(
       do {
         const history = await getMessageHistory(conversationId, cursor);
         if (!isCurrent(version)) return;
-        await applyMessages(history.messages, version, "follow", true);
+        await applyMessages(history.messages, version, "recovery");
         if (!isCurrent(version)) return;
         recoveryCursor = history.messages.at(-1)?.id ?? recoveryCursor;
         cursor = history.nextCursor ?? undefined;
@@ -330,8 +303,18 @@ export function useConversationMessages(
     }
   }
 
+  const stopWatchingSelection = watch(
+    selectedConversationId,
+    () => {
+      void loadSelectedConversation();
+    },
+    { immediate: true, flush: "sync" },
+  );
+
   function dispose(): void {
+    disposed = true;
     selectionVersion += 1;
+    stopWatchingSelection();
     stopWatchingDraft();
   }
 
@@ -348,7 +331,6 @@ export function useConversationMessages(
     contentError,
     messageErrorMessage,
     historyError,
-    selectConversation,
     submitMessage,
     loadEarlierMessages,
     recoverMessages,

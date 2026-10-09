@@ -198,6 +198,13 @@ Use two browser sessions, such as a normal window and a private window:
 
 ## Verify Conversation Accessibility
 
+For frontend ownership/lifecycle regression QA, also leave the dashboard and
+return quickly while the previous socket is closing. The replacement connection
+must stay connected, with no extra socket or stale events from the old owner.
+When reproducing delays with instrumentation, label that scenario as simulated.
+After leaving the feature entirely, pending history, scroll effects, discovery,
+and announcement callbacks must not alter the disposed feature.
+
 Use Chrome with a screen reader, such as Orca on Linux, and two authenticated
 sessions. Inspecting the accessibility tree alone does not confirm spoken output.
 

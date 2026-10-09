@@ -1,5 +1,4 @@
-import { ref, watch, type Ref } from "vue";
-import type { Router } from "vue-router";
+import { ref, watch } from "vue";
 
 import { ApiError } from "./api/client";
 import {
@@ -10,28 +9,17 @@ import {
 } from "./api/conversations";
 import { session } from "./auth/session";
 
-type ConversationSelection = {
-  selectedConversationId: Ref<string | null>;
-  selectConversation: (conversationId: string | null) => Promise<void>;
-};
-
-export function useConversations(
-  router: Router,
-  selection: ConversationSelection,
-) {
+export function useConversations() {
   const conversations = ref<Conversation[]>([]);
   const participantEmail = ref("");
   const isLoadingConversations = ref(false);
   const isCreatingConversation = ref(false);
   const listError = ref<string | null>(null);
   const creationError = ref<string | null>(null);
-  let loaded = false;
+  const hasLoadedConversations = ref(false);
   let disposed = false;
   let refreshPromise: Promise<boolean> | null = null;
   let refreshRequested = false;
-  let navigationVersion = 0;
-  let navigationTarget: string | null = null;
-  let selectionIntent = 0;
   let inputVersion = 0;
 
   const stopWatchingInput = watch(
@@ -42,87 +30,6 @@ export function useConversations(
     },
     { flush: "sync" },
   );
-
-  const stopWatchingRoute = watch(
-    () => router.currentRoute.value.fullPath,
-    (path) => {
-      if (path !== navigationTarget) selectionIntent += 1;
-      synchronizeSelection();
-    },
-    { flush: "sync" },
-  );
-
-  function synchronizeSelection(rewrite = true): void {
-    if (
-      !loaded ||
-      disposed ||
-      navigationTarget ||
-      router.currentRoute.value.path !== "/app"
-    )
-      return;
-    const query = router.currentRoute.value.query;
-    const rawId = query.conversation;
-    const requestedId = typeof rawId === "string" ? rawId.toLowerCase() : null;
-    const selected =
-      conversations.value.find(
-        (conversation) => conversation.id === requestedId,
-      ) ?? conversations.value[0];
-    const id = selected?.id ?? null;
-    if (id !== selection.selectedConversationId.value)
-      void selection.selectConversation(id);
-    if (
-      rewrite &&
-      ((id && rawId !== id) || (!id && Object.hasOwn(query, "conversation")))
-    ) {
-      void navigateToConversation(id, true);
-    }
-  }
-
-  async function navigateToConversation(
-    id: string | null,
-    replace = false,
-  ): Promise<void> {
-    if (disposed || router.currentRoute.value.path !== "/app") return;
-    const route = router.currentRoute.value;
-    const query = { ...route.query };
-    if (id) query.conversation = id;
-    else delete query.conversation;
-    const location = { path: "/app", query, hash: route.hash };
-    const version = ++navigationVersion;
-    navigationTarget = router.resolve(location).fullPath;
-    let completed = false;
-    try {
-      const failure = replace
-        ? await router.replace(location)
-        : await router.push(location);
-      completed = !failure;
-    } catch {
-      if (!disposed && version === navigationVersion)
-        listError.value =
-          "Unable to select the conversation. Please try again.";
-    } finally {
-      if (!disposed && version === navigationVersion) {
-        navigationTarget = null;
-        synchronizeSelection(completed);
-      }
-    }
-  }
-
-  async function openConversation(id: string): Promise<void> {
-    if (
-      disposed ||
-      !conversations.value.some((conversation) => conversation.id === id)
-    )
-      return;
-    selectionIntent += 1;
-    if (
-      selection.selectedConversationId.value === id &&
-      router.currentRoute.value.query.conversation === id &&
-      !navigationTarget
-    )
-      return;
-    await navigateToConversation(id);
-  }
 
   function loadConversations(): Promise<boolean> {
     if (disposed) return Promise.resolve(false);
@@ -144,8 +51,7 @@ export function useConversations(
           const result = await getConversations();
           if (disposed) return false;
           conversations.value = result;
-          loaded = true;
-          synchronizeSelection();
+          hasLoadedConversations.value = true;
         } catch {
           if (!disposed)
             listError.value = "Unable to load conversations. Please try again.";
@@ -170,39 +76,37 @@ export function useConversations(
     void loadConversations();
   }
 
-  async function submitConversation(): Promise<void> {
-    if (disposed || isCreatingConversation.value) return;
+  async function submitConversation(): Promise<string | null> {
+    if (disposed || isCreatingConversation.value) return null;
     const email = participantEmail.value.trim().toLowerCase();
     creationError.value = null;
     if (!email) {
       creationError.value =
         "Enter the email of the person you want to message.";
-      return;
+      return null;
     }
     if (email === session.user?.email.toLowerCase()) {
       creationError.value = "You cannot start a conversation with yourself.";
-      return;
+      return null;
     }
     let version = inputVersion;
-    const intent = selectionIntent;
     isCreatingConversation.value = true;
     try {
       const id = await createConversation(email);
-      if (disposed) return;
+      if (disposed) return null;
       if (inputVersion === version) {
         participantEmail.value = "";
         version = inputVersion;
       }
       const refreshed = await loadConversations();
-      if (disposed) return;
+      if (disposed) return null;
       if (!refreshed && inputVersion === version) {
         creationError.value =
           "The conversation was created, but the list could not be updated. Use Refresh to find it.";
-      } else if (refreshed && selectionIntent === intent) {
-        await navigateToConversation(id);
       }
+      return refreshed ? id : null;
     } catch (error) {
-      if (disposed || inputVersion !== version) return;
+      if (disposed || inputVersion !== version) return null;
       creationError.value =
         error instanceof ApiError
           ? error.status === 404
@@ -215,6 +119,7 @@ export function useConversations(
                   ? "Too many requests. Wait before starting another conversation."
                   : "Unable to create the conversation. Please try again."
           : "Unable to create the conversation. Check your connection and try again.";
+      return null;
     } finally {
       if (!disposed) isCreatingConversation.value = false;
     }
@@ -222,20 +127,18 @@ export function useConversations(
 
   function dispose(): void {
     disposed = true;
-    navigationVersion += 1;
     stopWatchingInput();
-    stopWatchingRoute();
   }
 
   return {
     conversations,
+    hasLoadedConversations,
     participantEmail,
     isLoadingConversations,
     isCreatingConversation,
     listError,
     creationError,
     loadConversations,
-    openConversation,
     submitConversation,
     discoverConversation,
     dispose,
