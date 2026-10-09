@@ -54,7 +54,9 @@ authenticated client routes.
 The client creates messages through HTTP with a generated `clientMessageId`.
 If a send fails, it retries with the same ID. It deduplicates HTTP responses and
 `message.created` events by message ID, reconnects its WebSocket after a close,
-and requests history after its last rendered message to recover missed events.
+and requests history after its last successfully loaded/recovered HTTP cursor
+to recover missed events without skipping intervening content when newer
+realtime messages arrive.
 The connection status is exposed in the conversation UI.
 
 ### Frontend Presentation Boundaries
@@ -81,11 +83,48 @@ These components do not fetch data, navigate, connect sockets, or own independen
 conversation/message stores. Props, model updates, and emitted intents keep the
 existing feature owners explicit; component extraction adds no wrapper layout.
 
-This is the first increment of #60, not the completed ownership refactor.
-`useConversations` still coordinates route/data operations, and
-`useConversationMessages` still controls transcript geometry. Separating those
-responsibilities is the next increment, after this presentation extraction is
-reviewed and merged.
+### Frontend State and Effect Ownership
+
+- `useConversations` owns conversation data, creation input/feedback, and grouped
+  refresh requests. It exposes list readiness separately from an empty list and
+  returns the created ID only after the refreshed list is available. It neither
+  imports Vue Router nor selects message state.
+- `useConversationRoute` resolves the requested URL against that list and owns
+  the read-only selected ID, URL correction, Back/Forward handling, navigation
+  errors, and selection intent. A failed first list query retains the requested
+  URL; a successfully empty list clears selection.
+- `useConversationMessages` consumes that selection and synchronously
+  invalidates old requests when it changes. It owns drafts, idempotent sends,
+  history cursors, deduplication, and recovery, without owning DOM geometry.
+- `useTranscriptScroll` owns viewport measurement and restoration. The typed
+  `beforeMessagesUpdate(source, isCurrent)` hook captures geometry before the
+  message merge and returns an asynchronous completion effect that waits for
+  Vue rendering. Message state awaits it before notifying incoming-message
+  consumers. The validity predicate prevents old effects acting on a new
+  conversation, and viewport identity guards prevent restoration on a replaced
+  element.
+- The update sources are `initial`, `earlier`, `realtime`, `recovery`, and
+  `local-send`. Initial/local sends reveal the end, earlier history preserves
+  the reading anchor, and realtime/recovery follow only near the end.
+- `useConversationAnnouncements` receives only novel incoming realtime/recovery
+  content from the message pipeline; it does not watch the full transcript to
+  infer arrivals. Its own-author, ID, and context guards retain announcement
+  semantics across routing and reconnection.
+
+The dashboard intentionally remains the small composition root: it passes
+read-only selection and typed effects between owners, coordinates creation
+completion against the route's captured intent, and keeps the creation control
+busy through its navigation phase. There is no second mutable selected-ID store,
+generic event bus, or broad dashboard controller.
+
+The same dashboard owns one active realtime connection lifetime. Incoming
+transport events update message state and trigger discovery; reconnect refreshes
+the list and recovers history. On disposal it disconnects the transport and
+disposes data, route, messages, scroll, and announcement effects. `realtime.ts`
+retains the existing single-active-dashboard assumption and one-second retry
+delay. Socket callbacks act only on the currently owned socket, and disconnect
+invalidates ownership before asynchronous closing, so delayed events cannot
+change a replacement connection or publish into its callbacks.
 
 ## Message Flow
 

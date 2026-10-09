@@ -1,4 +1,4 @@
-import { nextTick, ref } from "vue";
+import { nextTick, readonly, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
@@ -34,17 +34,24 @@ function deferred<T>() {
 }
 
 const states: ReturnType<typeof useConversationMessages>[] = [];
-function createState() {
-  const state = useConversationMessages(ref(null));
+function createState(incoming?: (messages: Message[]) => void) {
+  const selection = ref<string | null>(null);
+  const state = useConversationMessages(readonly(selection), {
+    onIncomingMessages: incoming,
+  });
   states.push(state);
-  return state;
+  return {
+    ...state,
+    async selectConversation(id: string | null): Promise<void> {
+      selection.value = id;
+      await vi.waitFor(() => expect(state.isLoadingMessages.value).toBe(false));
+    },
+  };
 }
 
 function createObservedState() {
   const incoming = vi.fn();
-  const state = useConversationMessages(ref(null), incoming);
-  states.push(state);
-  return { state, incoming };
+  return { state: createState(incoming), incoming };
 }
 
 beforeEach(() => {

@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { createMemoryHistory, createRouter, type Router } from "vue-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +14,7 @@ vi.mock("./auth/session", () => ({
 import { ApiError } from "./api/client";
 import type { Conversation, Message } from "./api/conversations";
 import { useConversations } from "./useConversations";
+import { useConversationRoute } from "./useConversationRoute";
 
 const firstId = "00000000-0000-4000-8000-000000000001";
 const secondId = "00000000-0000-4000-8000-000000000002";
@@ -48,23 +49,43 @@ function deferred<T>() {
   return { resolve, reject, promise };
 }
 
-const states: ReturnType<typeof useConversations>[] = [];
+const states: { dispose: () => void }[] = [];
 async function setup(path = "/app") {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: "/app", component: {} }],
   });
   await router.push(path);
-  const selectedConversationId = ref<string | null>(null);
+  const data = useConversations();
+  const route = useConversationRoute(router, data);
+  const selectedConversationId = route.selectedConversationId;
   const draft = ref("");
-  const selectConversation = vi.fn(async (id: string | null) => {
-    selectedConversationId.value = id;
-    draft.value = "";
-  });
-  const state = useConversations(router, {
+  const selectConversation = vi.fn<(id: string | null) => Promise<void>>(
+    async () => {
+      draft.value = "";
+    },
+  );
+  const stopWatchingSelection = watch(
     selectedConversationId,
-    selectConversation,
-  });
+    (id) => {
+      void selectConversation(id);
+    },
+    { flush: "sync" },
+  );
+  const state = {
+    ...data,
+    openConversation: route.openConversation,
+    async submitConversation() {
+      const intent = route.captureSelectionIntent();
+      const id = await data.submitConversation();
+      if (id) await route.selectCreatedConversation(id, intent);
+    },
+    dispose() {
+      data.dispose();
+      route.dispose();
+      stopWatchingSelection();
+    },
+  };
   states.push(state);
   return { state, router, selectedConversationId, selectConversation, draft };
 }

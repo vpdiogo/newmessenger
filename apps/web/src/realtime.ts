@@ -23,14 +23,19 @@ export function connectRealtime(
   shouldReconnect = true;
   const accessToken = getAccessToken();
   if (!accessToken || socket) return;
+  if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+  reconnectTimer = undefined;
 
   connectionState.value = "connecting";
-  socket = new WebSocket(webSocketUrl(), ["bearer", accessToken]);
-  socket.addEventListener("open", () => {
+  const currentSocket = new WebSocket(webSocketUrl(), ["bearer", accessToken]);
+  socket = currentSocket;
+  currentSocket.addEventListener("open", () => {
+    if (socket !== currentSocket) return;
     connectionState.value = "connected";
     onConnected?.();
   });
-  socket.addEventListener("message", (event) => {
+  currentSocket.addEventListener("message", (event) => {
+    if (socket !== currentSocket) return;
     let data: unknown;
     try {
       data = JSON.parse(String(event.data));
@@ -48,14 +53,16 @@ export function connectRealtime(
       onMessageCreated?.(data.data);
     }
   });
-  socket.addEventListener("close", () => {
+  currentSocket.addEventListener("close", () => {
+    if (socket !== currentSocket) return;
     socket = undefined;
     connectionState.value = "disconnected";
     if (shouldReconnect) {
-      reconnectTimer = window.setTimeout(
-        () => connectRealtime(handler, onConnected),
-        1000,
-      );
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        if (shouldReconnect && !socket && onMessageCreated)
+          connectRealtime(onMessageCreated, onConnected);
+      }, 1000);
     }
   });
 }
@@ -64,9 +71,12 @@ export function disconnectRealtime(): void {
   shouldReconnect = false;
   if (reconnectTimer) window.clearTimeout(reconnectTimer);
   reconnectTimer = undefined;
-  socket?.close();
+  const closingSocket = socket;
   socket = undefined;
+  onMessageCreated = undefined;
+  onConnected = undefined;
   connectionState.value = "disconnected";
+  closingSocket?.close();
 }
 
 function webSocketUrl(): string {

@@ -19,12 +19,35 @@ import {
   useConversationMessages,
 } from "../useConversationMessages";
 import { useConversations } from "../useConversations";
+import { useConversationRoute } from "../useConversationRoute";
+import { useTranscriptScroll } from "../useTranscriptScroll";
 import { useConversationAnnouncements } from "../useConversationAnnouncements";
 
 const router = useRouter();
 const transcript = ref<HTMLElement | null>(null);
+const conversationData = useConversations();
+const {
+  conversations,
+  participantEmail,
+  isLoadingConversations,
+  listError: conversationListError,
+  creationError,
+  loadConversations,
+  submitConversation: createConversation,
+  discoverConversation,
+  dispose: disposeConversations,
+} = conversationData;
 const {
   selectedConversationId,
+  navigationError,
+  openConversation,
+  captureSelectionIntent,
+  selectCreatedConversation,
+  dispose: disposeRoute,
+} = useConversationRoute(router, conversationData);
+const { beforeMessagesUpdate, dispose: disposeScroll } =
+  useTranscriptScroll(transcript);
+const {
   messages,
   earlierCursor,
   messageContent,
@@ -36,29 +59,37 @@ const {
   contentError,
   messageErrorMessage,
   historyError,
-  selectConversation,
   submitMessage,
   loadEarlierMessages,
   recoverMessages,
   retryHistory,
   handleMessageCreated,
   dispose,
-} = useConversationMessages(transcript, (incoming) =>
-  announceIncomingMessages(incoming),
+} = useConversationMessages(selectedConversationId, {
+  beforeMessagesUpdate,
+  onIncomingMessages: (incoming) => announceIncomingMessages(incoming),
+});
+const listError = computed(
+  () => navigationError.value ?? conversationListError.value,
 );
-const {
-  conversations,
-  participantEmail,
-  isLoadingConversations,
-  isCreatingConversation,
-  listError,
-  creationError,
-  loadConversations,
-  openConversation,
-  submitConversation,
-  discoverConversation,
-  dispose: disposeConversations,
-} = useConversations(router, { selectedConversationId, selectConversation });
+const isNavigatingCreation = ref(false);
+const isCreatingConversation = computed(
+  () =>
+    conversationData.isCreatingConversation.value || isNavigatingCreation.value,
+);
+
+async function submitConversation(): Promise<void> {
+  if (isNavigatingCreation.value) return;
+  const intent = captureSelectionIntent();
+  const id = await createConversation();
+  if (!id) return;
+  isNavigatingCreation.value = true;
+  try {
+    await selectCreatedConversation(id, intent);
+  } finally {
+    isNavigatingCreation.value = false;
+  }
+}
 
 function setTranscriptViewport(element: HTMLElement | null): void {
   transcript.value = element;
@@ -102,6 +133,8 @@ onBeforeUnmount(() => {
   disconnectRealtime();
   dispose();
   disposeConversations();
+  disposeRoute();
+  disposeScroll();
   disposeAnnouncements();
 });
 </script>
