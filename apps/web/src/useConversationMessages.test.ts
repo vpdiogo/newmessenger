@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
@@ -38,6 +38,13 @@ function createState() {
   const state = useConversationMessages(ref(null));
   states.push(state);
   return state;
+}
+
+function createObservedState() {
+  const incoming = vi.fn();
+  const state = useConversationMessages(ref(null), incoming);
+  states.push(state);
+  return { state, incoming };
 }
 
 beforeEach(() => {
@@ -157,6 +164,49 @@ describe("message submission recovery", () => {
 });
 
 describe("latest history and reconnect recovery", () => {
+  it("does not announce initial or earlier history, then reports only unseen recovered messages", async () => {
+    const { state, incoming } = createObservedState();
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m050")],
+      nextCursor: "m050",
+    });
+    await state.selectConversation("conversation-a");
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m001")],
+      nextCursor: null,
+    });
+    await state.loadEarlierMessages();
+    expect(incoming).not.toHaveBeenCalled();
+    state.handleMessageCreated(message("m075"));
+    await nextTick();
+    expect(incoming).toHaveBeenCalledExactlyOnceWith([message("m075")]);
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m075"), message("m100")],
+      nextCursor: null,
+    });
+    await state.recoverMessages();
+    expect(incoming.mock.calls).toEqual([
+      [[message("m075")]],
+      [[message("m100")]],
+    ]);
+  });
+
+  it("suppresses duplicate deliveries, sent-response announcements, and stale publication after switching", async () => {
+    const { state, incoming } = createObservedState();
+    await state.selectConversation("conversation-a");
+    state.messageContent.value = "Own send";
+    await state.submitMessage();
+    expect(incoming).not.toHaveBeenCalled();
+    state.handleMessageCreated(message("new"));
+    state.handleMessageCreated(message("new"));
+    await nextTick();
+    expect(incoming).toHaveBeenCalledExactlyOnceWith([message("new")]);
+    incoming.mockClear();
+    state.handleMessageCreated(message("old-pending"));
+    await state.selectConversation("conversation-b");
+    await nextTick();
+    expect(incoming).not.toHaveBeenCalled();
+  });
   it("clears selection and ignores pending history when the conversation list becomes empty", async () => {
     const state = createState();
     const response = deferred<MessageHistory>();
