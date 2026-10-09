@@ -38,6 +38,7 @@ const {
   submitMessage,
   loadEarlierMessages,
   recoverMessages,
+  retryHistory,
   handleMessageCreated,
   dispose,
 } = useConversationMessages(transcript);
@@ -427,9 +428,9 @@ async function submitConversation(): Promise<void> {
         <button
           v-if="historyError"
           class="ml-2 underline"
-          :disabled="isLoadingMessages"
+          :disabled="isLoadingMessages || isLoadingEarlier"
           type="button"
-          @click="recoverMessages"
+          @click="retryHistory"
         >
           Retry loading history
         </button>

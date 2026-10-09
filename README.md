@@ -180,9 +180,14 @@ With `direction=backward`, `nextCursor` identifies the oldest message in the
 returned page when earlier messages remain. Request that cursor with the same
 direction to load the preceding page. Both directions return each page in
 chronological `(createdAt, id)` order; `nextCursor` is `null` at the end.
+Message timestamps are UTC ISO strings retaining PostgreSQL's six-digit
+fractional precision so frontend ordering matches history cursors.
 The web client opens recent history and offers **Load earlier messages**.
 Incoming messages follow the transcript end only when the reader is near it;
 loading earlier history preserves the reading position.
+
+Deploy backend support for `direction=backward` before releasing the updated
+web client. Existing clients using forward history remain compatible.
 
 ## Available Commands
 

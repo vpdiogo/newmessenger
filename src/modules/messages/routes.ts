@@ -16,11 +16,15 @@ const messageHistorySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+// Preserve PostgreSQL microseconds so client ordering matches history cursors.
+const messageColumns = `id, conversation_id, sender_id, client_message_id, content,
+  to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at`;
+
 type MessageRow = {
   client_message_id: string;
   content: string;
   conversation_id: string;
-  created_at: Date;
+  created_at: string;
   id: string;
   sender_id: string;
 };
@@ -32,7 +36,7 @@ function messageResponse(message: MessageRow): Message {
     conversationId: message.conversation_id,
     senderId: message.sender_id,
     content: message.content,
-    createdAt: message.created_at.toISOString(),
+    createdAt: message.created_at,
   };
 }
 
@@ -69,7 +73,7 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
         `INSERT INTO messages (id, conversation_id, sender_id, client_message_id, content)
          SELECT $1, $2, $3, $4, $5
          ON CONFLICT (sender_id, client_message_id) DO NOTHING
-         RETURNING id, conversation_id, sender_id, client_message_id, content, created_at`,
+         RETURNING ${messageColumns}`,
         [
           randomUUID(),
           conversationId,
@@ -82,7 +86,7 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
       const isNewMessage = Boolean(message);
       if (!message) {
         const existingMessage = await app.postgres.query<MessageRow>(
-          `SELECT id, conversation_id, sender_id, client_message_id, content, created_at
+          `SELECT ${messageColumns}
            FROM messages
            WHERE sender_id = $1 AND client_message_id = $2`,
           [senderId, input.data.clientMessageId.toLowerCase()],
@@ -146,7 +150,7 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
       const comparison = backward ? "<" : ">";
       const order = backward ? "DESC" : "ASC";
       const result = await app.postgres.query<MessageRow>(
-        `SELECT id, conversation_id, sender_id, client_message_id, content, created_at
+        `SELECT ${messageColumns}
          FROM messages
          WHERE conversation_id = $1
            AND ($2::uuid IS NULL OR (created_at, id) ${comparison} (

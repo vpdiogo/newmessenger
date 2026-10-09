@@ -157,6 +157,116 @@ describe("message submission recovery", () => {
 });
 
 describe("latest history and reconnect recovery", () => {
+  it("does not skip a gap when realtime delivery precedes the initial HTTP response", async () => {
+    const state = createState();
+    const initialPage = deferred<MessageHistory>();
+    api.getMessageHistory
+      .mockReturnValueOnce(initialPage.promise)
+      .mockResolvedValueOnce({
+        messages: [message("m075"), message("m100")],
+        nextCursor: null,
+      });
+    const selecting = state.selectConversation("conversation-a");
+    await state.recoverMessages();
+    state.handleMessageCreated(message("m100"));
+    initialPage.resolve({ messages: [message("m050")], nextCursor: "m050" });
+    await selecting;
+    await vi.waitFor(() => {
+      expect(state.messages.value.map((item) => item.id)).toEqual([
+        "m050",
+        "m075",
+        "m100",
+      ]);
+    });
+    expect(api.getMessageHistory).toHaveBeenLastCalledWith(
+      "conversation-a",
+      "m050",
+    );
+  });
+
+  it("retries from the last recovered page rather than a newer realtime message", async () => {
+    const state = createState();
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m001")],
+      nextCursor: null,
+    });
+    await state.selectConversation("conversation-a");
+    api.getMessageHistory
+      .mockResolvedValueOnce({
+        messages: [message("m050")],
+        nextCursor: "m050",
+      })
+      .mockRejectedValueOnce(new TypeError("Partial recovery failed"));
+    await state.recoverMessages();
+    expect(state.historyError.value).toBeTruthy();
+    state.handleMessageCreated(message("m100"));
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m075"), message("m100")],
+      nextCursor: null,
+    });
+    await state.retryHistory();
+    expect(api.getMessageHistory).toHaveBeenLastCalledWith(
+      "conversation-a",
+      "m050",
+    );
+    expect(state.messages.value.map((item) => item.id)).toEqual([
+      "m001",
+      "m050",
+      "m075",
+      "m100",
+    ]);
+  });
+
+  it("repeats backward pagination when an earlier-page request fails", async () => {
+    const state = createState();
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m050")],
+      nextCursor: "m050",
+    });
+    await state.selectConversation("conversation-a");
+    api.getMessageHistory.mockRejectedValueOnce(
+      new TypeError("Earlier history unavailable"),
+    );
+    await state.loadEarlierMessages();
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [message("m001")],
+      nextCursor: null,
+    });
+    await state.retryHistory();
+    expect(api.getMessageHistory).toHaveBeenLastCalledWith(
+      "conversation-a",
+      "m050",
+      "backward",
+    );
+    expect(state.messages.value.map((item) => item.id)).toEqual([
+      "m001",
+      "m050",
+    ]);
+    expect(state.historyError.value).toBeNull();
+  });
+
+  it("recovers forward from the origin after an initially empty conversation", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    api.getMessageHistory
+      .mockResolvedValueOnce({
+        messages: [message("m001")],
+        nextCursor: "m001",
+      })
+      .mockResolvedValueOnce({ messages: [message("m100")], nextCursor: null });
+    await state.recoverMessages();
+    expect(api.getMessageHistory).toHaveBeenNthCalledWith(
+      2,
+      "conversation-a",
+      undefined,
+    );
+    expect(api.getMessageHistory).toHaveBeenLastCalledWith(
+      "conversation-a",
+      "m001",
+    );
+    expect(state.messages.value).toHaveLength(2);
+  });
+
   it("loads latest and earlier pages without replacing the backward cursor during recovery", async () => {
     const state = createState();
     api.getMessageHistory.mockResolvedValueOnce({

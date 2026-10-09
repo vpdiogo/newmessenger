@@ -108,6 +108,36 @@ test(
         assert.equal(invalid.statusCode, 400);
       }
 
+      await app.postgres.query(
+        "UPDATE messages SET created_at = '2026-10-08T12:00:00.0001Z' WHERE id = $1",
+        [ids[64]],
+      );
+      await app.postgres.query(
+        "UPDATE messages SET created_at = '2026-10-08T12:00:00.0009Z' WHERE id = $1",
+        [ids[0]],
+      );
+      const precise = await app.inject({
+        method: "GET",
+        url: `${path}?direction=backward&limit=2`,
+        headers,
+      });
+      assert.deepEqual(
+        precise.json().messages.map((item: { id: string }) => item.id),
+        [ids[64], ids[0]],
+      );
+      assert.deepEqual(
+        precise
+          .json()
+          .messages.map((item: { createdAt: string }) => item.createdAt),
+        ["2026-10-08T12:00:00.000100Z", "2026-10-08T12:00:00.000900Z"],
+      );
+      const preciseRecovery = await app.inject({
+        method: "GET",
+        url: `${path}?cursor=${ids[64]}`,
+        headers,
+      });
+      assert.equal(preciseRecovery.json().messages[0].id, ids[0]);
+
       const atLimit = await app.inject({
         method: "POST",
         url: path,

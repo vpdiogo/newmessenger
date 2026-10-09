@@ -34,6 +34,8 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
   let recovering = false;
   let recoveryRequested = false;
   let historyLoaded = false;
+  let recoveryCursor: string | undefined;
+  let historyFailure: "latest" | "earlier" | "recovery" | null = null;
 
   const contentLength = computed(() => messageContent.value.trim().length);
   const contentError = computed(() =>
@@ -113,6 +115,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     if (!conversationId || !isCurrent(version)) return;
     isLoadingMessages.value = true;
     historyError.value = null;
+    historyFailure = null;
     try {
       const history = await getMessageHistory(
         conversationId,
@@ -121,11 +124,13 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
       );
       if (!isCurrent(version)) return;
       earlierCursor.value = history.nextCursor;
+      recoveryCursor = history.messages.at(-1)?.id;
       historyLoaded = true;
       isLoadingMessages.value = false;
       await applyMessages(history.messages, version, "end");
     } catch {
       if (isCurrent(version)) {
+        historyFailure = "latest";
         historyError.value =
           "Unable to load messages. Please retry loading history.";
       }
@@ -154,6 +159,8 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     recovering = false;
     recoveryRequested = false;
     historyLoaded = false;
+    recoveryCursor = undefined;
+    historyFailure = null;
     await loadLatestMessages(version);
   }
 
@@ -170,6 +177,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     const version = selectionVersion;
     isLoadingEarlier.value = true;
     historyError.value = null;
+    historyFailure = null;
     try {
       const history = await getMessageHistory(
         conversationId,
@@ -181,6 +189,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
       await applyMessages(history.messages, version, "preserve");
     } catch {
       if (isCurrent(version)) {
+        historyFailure = "earlier";
         historyError.value =
           "Unable to load earlier messages. Please try again.";
       }
@@ -261,22 +270,26 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
       return;
     }
     const version = selectionVersion;
-    let cursor = messages.value.at(-1)?.id;
-    if (!historyLoaded || !cursor) {
+    let cursor = recoveryCursor;
+    if (!historyLoaded) {
       await loadLatestMessages(version);
       return;
     }
     recovering = true;
     historyError.value = null;
+    historyFailure = null;
     try {
       do {
         const history = await getMessageHistory(conversationId, cursor);
         if (!isCurrent(version)) return;
         await applyMessages(history.messages, version, "follow");
+        if (!isCurrent(version)) return;
+        recoveryCursor = history.messages.at(-1)?.id ?? recoveryCursor;
         cursor = history.nextCursor ?? undefined;
       } while (cursor && isCurrent(version));
     } catch {
       if (isCurrent(version)) {
+        historyFailure = "recovery";
         historyError.value =
           "Unable to recover messages. Please retry loading history.";
       }
@@ -288,6 +301,16 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
           void recoverMessages();
         }
       }
+    }
+  }
+
+  async function retryHistory(): Promise<void> {
+    if (historyFailure === "earlier") {
+      await loadEarlierMessages();
+    } else if (historyFailure === "latest") {
+      if (!isLoadingMessages.value) await loadLatestMessages(selectionVersion);
+    } else {
+      await recoverMessages();
     }
   }
 
@@ -313,6 +336,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     submitMessage,
     loadEarlierMessages,
     recoverMessages,
+    retryHistory,
     handleMessageCreated,
     dispose,
   };
