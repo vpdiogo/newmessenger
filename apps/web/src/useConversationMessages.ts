@@ -19,6 +19,8 @@ type PendingMessage = {
 export type MessageUpdateSource =
   "initial" | "earlier" | "realtime" | "recovery" | "local-send";
 
+export type MessageSubmissionResult = "sent" | "failed" | "ignored" | "stale";
+
 export type MessageUpdateEffects = {
   beforeMessagesUpdate?: (
     source: MessageUpdateSource,
@@ -187,7 +189,7 @@ export function useConversationMessages(
     }
   }
 
-  async function submitMessage(): Promise<void> {
+  async function submitMessage(): Promise<MessageSubmissionResult> {
     const conversationId = selectedConversationId.value;
     const content = messageContent.value.trim();
     if (
@@ -197,7 +199,7 @@ export function useConversationMessages(
       isSendingMessage.value ||
       isLoadingMessages.value
     )
-      return;
+      return "ignored";
     const version = selectionVersion;
     const submittedDraftVersion = draftVersion;
     const request: PendingMessage = pendingMessage.value ?? {
@@ -213,12 +215,14 @@ export function useConversationMessages(
         request.clientMessageId,
         request.content,
       );
-      if (!isCurrent(version)) return;
+      if (!isCurrent(version)) return "stale";
       if (draftVersion === submittedDraftVersion) messageContent.value = "";
       pendingMessage.value = null;
       await applyMessages([message], version, "local-send");
+      return isCurrent(version) ? "sent" : "stale";
     } catch (error) {
-      if (!isCurrent(version) || draftVersion !== submittedDraftVersion) return;
+      if (!isCurrent(version) || draftVersion !== submittedDraftVersion)
+        return "stale";
       if (
         error instanceof ApiError &&
         error.status >= 400 &&
@@ -241,6 +245,7 @@ export function useConversationMessages(
             ? "Too many requests. Wait before retrying this message."
             : "Unable to confirm the message was sent. Retry unchanged to avoid duplicates; editing sends a new message.";
       }
+      return "failed";
     } finally {
       if (isCurrent(version)) isSendingMessage.value = false;
     }

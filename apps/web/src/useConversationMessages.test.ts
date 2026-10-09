@@ -56,7 +56,7 @@ function createObservedState() {
 }
 
 async function pressEnter(state: ReturnType<typeof createState>) {
-  let sending: Promise<void> | undefined;
+  let sending: Promise<unknown> | undefined;
   submitMessageOnEnter(
     { key: "Enter", preventDefault: vi.fn() } as unknown as KeyboardEvent,
     () => {
@@ -177,7 +177,7 @@ describe("message submission recovery", () => {
     await state.selectConversation("conversation-a");
     state.messageContent.value = "hello";
     api.sendMessage.mockRejectedValueOnce(new TypeError("Response lost"));
-    await state.submitMessage();
+    expect(await state.submitMessage()).toBe("failed");
     const original = state.pendingMessage.value!;
     state.handleMessageCreated(
       message("sent", {
@@ -186,7 +186,7 @@ describe("message submission recovery", () => {
       }),
     );
     expect(state.messageContent.value).toBe("hello");
-    await state.submitMessage();
+    expect(await state.submitMessage()).toBe("sent");
     expect(api.sendMessage.mock.calls.map((call) => call[1])).toEqual([
       original.clientMessageId,
       original.clientMessageId,
@@ -248,11 +248,11 @@ describe("message submission recovery", () => {
     api.sendMessage.mockReturnValueOnce(response.promise);
     state.messageContent.value = "original";
     const sending = state.submitMessage();
-    await state.submitMessage();
+    expect(await state.submitMessage()).toBe("ignored");
     expect(api.sendMessage).toHaveBeenCalledTimes(1);
     state.messageContent.value = "next draft";
     response.resolve(message("sent", { content: "original" }));
-    await sending;
+    expect(await sending).toBe("sent");
     expect(state.messageContent.value).toBe("next draft");
     expect(state.isSendingMessage.value).toBe(false);
   });
@@ -268,7 +268,7 @@ describe("message submission recovery", () => {
     await state.selectConversation("conversation-a");
     state.messageContent.value = "current draft";
     response.reject(new TypeError("Old failure"));
-    await sending;
+    expect(await sending).toBe("stale");
     expect(state.pendingMessage.value).toBeNull();
     expect(state.messageErrorMessage.value).toBeNull();
     expect(state.messageContent.value).toBe("current draft");
