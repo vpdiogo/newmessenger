@@ -57,6 +57,36 @@ If a send fails, it retries with the same ID. It deduplicates HTTP responses and
 and requests history after its last rendered message to recover missed events.
 The connection status is exposed in the conversation UI.
 
+### Frontend Presentation Boundaries
+
+The dashboard owns the feature's composable instances, selected-participant
+derivation, realtime event wiring, connection lifetime, and persistent polite
+announcement regions. Its presentational sections live in
+`apps/web/src/components/conversations/`:
+
+- `ConversationSidebar` renders the account, contact list, creation form, and
+  feedback. It emits selection, refresh, and creation intents.
+- `ConversationHeader` renders the participant heading that names the central
+  conversation region.
+- `ConversationTranscript` renders grouped messages, history controls, and
+  loading/empty states. Its viewport event supplies the actual `HTMLElement`
+  (or `null` on removal) to the dashboard's existing transcript ref, preserving
+  the scroll controller's element identity and render timing.
+- `MessageComposer` renders the controlled draft, limit, submission guard, and
+  Send/Retry state. Its model updates the existing draft and its send intent
+  invokes the existing idempotent submission action.
+- `ParticipantPane` renders the selected participant or its empty state.
+
+These components do not fetch data, navigate, connect sockets, or own independent
+conversation/message stores. Props, model updates, and emitted intents keep the
+existing feature owners explicit; component extraction adds no wrapper layout.
+
+This is the first increment of #60, not the completed ownership refactor.
+`useConversations` still coordinates route/data operations, and
+`useConversationMessages` still controls transcript geometry. Separating those
+responsibilities is the next increment, after this presentation extraction is
+reviewed and merged.
+
 ## Message Flow
 
 ```mermaid
