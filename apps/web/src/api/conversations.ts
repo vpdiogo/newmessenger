@@ -62,9 +62,11 @@ export async function getConversations(): Promise<Conversation[]> {
 export async function getMessageHistory(
   conversationId: string,
   cursor?: string,
+  direction: "forward" | "backward" = "forward",
 ): Promise<MessageHistory> {
   const query = new URLSearchParams({ limit: "50" });
   if (cursor) query.set("cursor", cursor);
+  if (direction === "backward") query.set("direction", direction);
 
   const data = await requestJson(
     `/conversations/${conversationId}/messages?${query}`,

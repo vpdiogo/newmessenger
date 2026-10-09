@@ -6,11 +6,7 @@ import {
   type Message,
   createConversation,
   getConversations,
-  getMessageHistory,
-  sendMessage,
 } from "../api/conversations";
-import { isCurrentHistoryRequest } from "../history";
-import { appendMessages } from "../messages";
 import {
   connectRealtime,
   connectionState,
@@ -18,24 +14,38 @@ import {
 } from "../realtime";
 import { session } from "../auth/session";
 import { formatMessageTime, groupTranscriptMessages } from "../transcript";
+import {
+  MESSAGE_CONTENT_LIMIT,
+  useConversationMessages,
+} from "../useConversationMessages";
 
 const conversations = ref<Conversation[]>([]);
-const selectedConversationId = ref<string | null>(null);
-const messages = ref<Message[]>([]);
-const nextCursor = ref<string | null>(null);
+const transcript = ref<HTMLElement | null>(null);
+const {
+  selectedConversationId,
+  messages,
+  earlierCursor,
+  messageContent,
+  pendingMessage,
+  isLoadingMessages,
+  isLoadingEarlier,
+  isSendingMessage,
+  contentLength,
+  contentError,
+  messageErrorMessage,
+  historyError,
+  selectConversation,
+  submitMessage,
+  loadEarlierMessages,
+  recoverMessages,
+  retryHistory,
+  handleMessageCreated,
+  dispose,
+} = useConversationMessages(transcript);
 const participantEmail = ref("");
-const messageContent = ref("");
-const pendingMessage = ref<{
-  clientMessageId: string;
-  content: string;
-  conversationId: string;
-} | null>(null);
 const isLoadingConversations = ref(true);
-const isLoadingMessages = ref(false);
 const isCreatingConversation = ref(false);
-const isSendingMessage = ref(false);
 const conversationErrorMessage = ref<string | null>(null);
-const messageErrorMessage = ref<string | null>(null);
 
 function isOwnMessage(message: Message): boolean {
   return message.senderId === session.user?.sub;
@@ -56,7 +66,10 @@ onMounted(() => {
   });
 });
 
-onBeforeUnmount(disconnectRealtime);
+onBeforeUnmount(() => {
+  disconnectRealtime();
+  dispose();
+});
 
 async function loadConversations(): Promise<void> {
   isLoadingConversations.value = true;
@@ -91,117 +104,6 @@ async function submitConversation(): Promise<void> {
     isCreatingConversation.value = false;
   }
 }
-
-async function selectConversation(conversationId: string): Promise<void> {
-  selectedConversationId.value = conversationId;
-  messages.value = [];
-  nextCursor.value = null;
-  pendingMessage.value = null;
-  messageContent.value = "";
-  await loadMessages();
-}
-
-async function submitMessage(): Promise<void> {
-  if (!selectedConversationId.value) return;
-
-  const conversationId = selectedConversationId.value;
-  const content = messageContent.value.trim();
-  const retry = pendingMessage.value;
-  if (!content || (retry && retry.conversationId !== conversationId)) return;
-
-  const request =
-    retry ??
-    ({
-      clientMessageId: crypto.randomUUID(),
-      content,
-      conversationId,
-    } as const);
-
-  isSendingMessage.value = true;
-  messageErrorMessage.value = null;
-  try {
-    const message = await sendMessage(
-      request.conversationId,
-      request.clientMessageId,
-      request.content,
-    );
-    if (selectedConversationId.value !== request.conversationId) return;
-    messages.value = appendMessages(messages.value, [message]);
-    messageContent.value = "";
-    pendingMessage.value = null;
-  } catch {
-    if (selectedConversationId.value !== request.conversationId) return;
-    pendingMessage.value = request;
-    messageErrorMessage.value = "Unable to send the message. Please retry.";
-  } finally {
-    isSendingMessage.value = false;
-  }
-}
-
-function handleMessageCreated(message: Message): void {
-  if (message.conversationId !== selectedConversationId.value) return;
-  messages.value = appendMessages(messages.value, [message]);
-}
-
-async function recoverMessages(): Promise<void> {
-  if (!selectedConversationId.value || messages.value.length === 0) return;
-
-  const conversationId = selectedConversationId.value;
-  const lastMessage = messages.value.at(-1);
-  if (!lastMessage) return;
-
-  try {
-    const history = await getMessageHistory(conversationId, lastMessage.id);
-    if (selectedConversationId.value !== conversationId) return;
-    messages.value = appendMessages(messages.value, history.messages);
-    nextCursor.value = history.nextCursor;
-  } catch {
-    messageErrorMessage.value = "Unable to recover messages. Please refresh.";
-  }
-}
-
-async function loadMessages(): Promise<void> {
-  if (!selectedConversationId.value) return;
-
-  const conversationId = selectedConversationId.value;
-  const cursor = nextCursor.value;
-  let applied = false;
-  isLoadingMessages.value = true;
-  messageErrorMessage.value = null;
-  try {
-    const history = await getMessageHistory(
-      conversationId,
-      cursor ?? undefined,
-    );
-    if (
-      !isCurrentHistoryRequest(
-        selectedConversationId.value,
-        nextCursor.value,
-        conversationId,
-        cursor,
-      )
-    ) {
-      return;
-    }
-    messages.value = appendMessages(messages.value, history.messages);
-    nextCursor.value = history.nextCursor;
-    applied = true;
-  } catch {
-    messageErrorMessage.value = "Unable to load messages. Please try again.";
-  } finally {
-    if (
-      applied ||
-      isCurrentHistoryRequest(
-        selectedConversationId.value,
-        nextCursor.value,
-        conversationId,
-        cursor,
-      )
-    ) {
-      isLoadingMessages.value = false;
-    }
-  }
-}
 </script>
 
 <template>
@@ -209,9 +111,9 @@ async function loadMessages(): Promise<void> {
     class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
   >
     <aside
-      class="flex min-h-0 flex-col rounded-3xl border border-white/80 bg-sky-50/55 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
+      class="flex min-h-0 flex-col overflow-y-auto rounded-3xl border border-white/80 bg-sky-50/55 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
     >
-      <section class="mb-5 border-b border-sky-100 pb-5">
+      <section class="mb-3 shrink-0 border-b border-sky-100 pb-3">
         <div class="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -242,8 +144,8 @@ async function loadMessages(): Promise<void> {
         </p>
       </section>
 
-      <section class="flex min-h-0 flex-1 flex-col">
-        <div class="mb-3 flex items-center justify-between">
+      <section class="flex min-h-36 flex-1 flex-col">
+        <div class="mb-3 flex shrink-0 items-center justify-between">
           <div>
             <p
               class="text-xs font-bold uppercase tracking-[0.16em] text-sky-700"
@@ -355,7 +257,23 @@ async function loadMessages(): Promise<void> {
             </p>
           </div>
         </header>
-        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-8">
+        <div
+          ref="transcript"
+          class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-8 [overflow-anchor:none]"
+        >
+          <button
+            v-if="earlierCursor"
+            class="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isLoadingEarlier"
+            type="button"
+            @click="loadEarlierMessages"
+          >
+            {{
+              isLoadingEarlier
+                ? "Loading earlier messages..."
+                : "Load earlier messages"
+            }}
+          </button>
           <p v-if="isLoadingMessages" class="text-sm text-slate-500">
             Loading messages...
           </p>
@@ -404,6 +322,7 @@ async function loadMessages(): Promise<void> {
               <div
                 v-for="message in group.messages"
                 :key="message.id"
+                :data-message-id="message.id"
                 class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4"
               >
                 <p
@@ -418,18 +337,9 @@ async function loadMessages(): Promise<void> {
               </div>
             </li>
           </ol>
-          <button
-            v-if="nextCursor"
-            class="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="isLoadingMessages"
-            type="button"
-            @click="loadMessages"
-          >
-            Load more messages
-          </button>
         </div>
         <form
-          class="border-t border-sky-100 bg-sky-50/55 p-4 sm:p-5"
+          class="shrink-0 border-t border-sky-100 bg-sky-50/55 p-4 sm:p-5"
           @submit.prevent="submitMessage"
         >
           <label class="sr-only" for="message">Message</label>
@@ -437,14 +347,21 @@ async function loadMessages(): Promise<void> {
             <textarea
               id="message"
               v-model="messageContent"
-              class="min-h-11 min-w-0 flex-1 resize-y rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+              aria-describedby="message-limit"
+              :aria-invalid="Boolean(contentError)"
+              class="min-h-11 max-h-32 min-w-0 flex-1 resize-y rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
               placeholder="Type a message..."
               required
               rows="1"
             />
             <button
               class="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="isSendingMessage || !messageContent.trim()"
+              :disabled="
+                isSendingMessage ||
+                isLoadingMessages ||
+                !messageContent.trim() ||
+                Boolean(contentError)
+              "
               type="submit"
             >
               <svg
@@ -478,6 +395,10 @@ async function loadMessages(): Promise<void> {
               }}
             </button>
           </div>
+          <p id="message-limit" class="mt-2 text-right text-xs text-slate-500">
+            {{ contentLength.toLocaleString("en-US") }} /
+            {{ MESSAGE_CONTENT_LIMIT.toLocaleString("en-US") }} characters
+          </p>
         </form>
       </template>
       <div
@@ -500,10 +421,19 @@ async function loadMessages(): Promise<void> {
       </div>
       <p
         v-if="messageErrorMessage"
-        class="mx-4 mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 sm:mx-5"
+        class="mx-4 mb-4 max-h-28 shrink-0 overflow-y-auto rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 sm:mx-5"
         role="alert"
       >
         {{ messageErrorMessage }}
+        <button
+          v-if="historyError"
+          class="ml-2 underline"
+          :disabled="isLoadingMessages || isLoadingEarlier"
+          type="button"
+          @click="retryHistory"
+        >
+          Retry loading history
+        </button>
       </p>
     </div>
 
