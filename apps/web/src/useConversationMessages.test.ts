@@ -9,6 +9,7 @@ vi.mock("./api/conversations", () => api);
 
 import { ApiError } from "./api/client";
 import type { Message, MessageHistory } from "./api/conversations";
+import { submitMessageOnEnter } from "./components/conversations/messageKeyboard";
 import { useConversationMessages } from "./useConversationMessages";
 
 function message(id: string, overrides: Partial<Message> = {}): Message {
@@ -54,6 +55,17 @@ function createObservedState() {
   return { state: createState(incoming), incoming };
 }
 
+async function pressEnter(state: ReturnType<typeof createState>) {
+  let sending: Promise<void> | undefined;
+  submitMessageOnEnter(
+    { key: "Enter", preventDefault: vi.fn() } as unknown as KeyboardEvent,
+    () => {
+      sending = state.submitMessage();
+    },
+  );
+  await sending;
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   api.getMessageHistory.mockResolvedValue({ messages: [], nextCursor: null });
@@ -64,6 +76,99 @@ beforeEach(() => {
 });
 afterEach(() => {
   for (const state of states.splice(0)) state.dispose();
+});
+
+describe("keyboard intent through the existing submission flow", () => {
+  it("retains drafts without sending when selection is absent or history is loading", async () => {
+    const state = createState();
+    state.messageContent.value = "No selection";
+    await pressEnter(state);
+    expect(state.messageContent.value).toBe("No selection");
+    const page = deferred<MessageHistory>();
+    api.getMessageHistory.mockReturnValueOnce(page.promise);
+    const selecting = state.selectConversation("conversation-a");
+    state.messageContent.value = "Loading draft";
+    await pressEnter(state);
+    expect(api.sendMessage).not.toHaveBeenCalled();
+    expect(state.messageContent.value).toBe("Loading draft");
+    page.resolve({ messages: [], nextCursor: null });
+    await selecting;
+    await pressEnter(state);
+    expect(api.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      "conversation-a",
+      expect.any(String),
+      "Loading draft",
+    );
+  });
+
+  it.each(["", " \n ", "a".repeat(2001)])(
+    "retains an invalid draft without a keyboard send (case %#)",
+    async (draft) => {
+      const state = createState();
+      await state.selectConversation("conversation-a");
+      state.messageContent.value = draft;
+      await pressEnter(state);
+      expect(api.sendMessage).not.toHaveBeenCalled();
+      expect(state.messageContent.value).toBe(draft);
+    },
+  );
+
+  it("blocks repeated Enter while pending and suppresses local-send announcements", async () => {
+    const { state, incoming } = createObservedState();
+    await state.selectConversation("conversation-a");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    state.messageContent.value = "One message";
+    const sending = pressEnter(state);
+    await pressEnter(state);
+    await pressEnter(state);
+    expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    expect(state.messageContent.value).toBe("One message");
+    response.resolve(message("sent", { content: "One message" }));
+    await sending;
+    expect(state.messageContent.value).toBe("");
+    expect(incoming).not.toHaveBeenCalled();
+  });
+
+  it("reuses failed keyboard IDs on unchanged retry and replaces them after editing", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    state.messageContent.value = "Original";
+    api.sendMessage.mockRejectedValue(new TypeError("Response lost"));
+    await pressEnter(state);
+    const originalId = state.pendingMessage.value!.clientMessageId;
+    await pressEnter(state);
+    expect(api.sendMessage.mock.calls.map((call) => call[1])).toEqual([
+      originalId,
+      originalId,
+    ]);
+    expect(state.messageErrorMessage.value).toContain("Retry unchanged");
+    state.messageContent.value = "Edited";
+    api.sendMessage.mockResolvedValueOnce(
+      message("sent", { content: "Edited" }),
+    );
+    await pressEnter(state);
+    expect(api.sendMessage.mock.calls[2]?.[1]).not.toBe(originalId);
+    expect(api.sendMessage.mock.calls[2]?.[2]).toBe("Edited");
+    expect(state.messageErrorMessage.value).toBeNull();
+  });
+
+  it("isolates a pending keyboard response after switching conversations", async () => {
+    const { state, incoming } = createObservedState();
+    await state.selectConversation("conversation-a");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    state.messageContent.value = "Old conversation";
+    const sending = pressEnter(state);
+    await state.selectConversation("conversation-b");
+    state.messageContent.value = "New draft";
+    response.resolve(message("old-response"));
+    await sending;
+    expect(state.selectedConversationId.value).toBe("conversation-b");
+    expect(state.messageContent.value).toBe("New draft");
+    expect(state.messages.value).toEqual([]);
+    expect(incoming).not.toHaveBeenCalled();
+  });
 });
 
 describe("message submission recovery", () => {

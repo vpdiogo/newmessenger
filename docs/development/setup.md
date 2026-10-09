@@ -175,6 +175,19 @@ Use two browser sessions, such as a normal window and a private window:
 
 ## Verify Message Recovery and Transcript Layout
 
+- Press Enter with a non-empty draft and confirm exactly one HTTP message and
+  real-time delivery. Shift+Enter must insert a newline without sending; the
+  visible Send button must still work. Confirm the shortcut does not move focus
+  or announce your own message as incoming.
+- Confirm Enter does not send empty, whitespace-only, or oversized drafts,
+  during initial history loading, or while a send is pending. Hold Enter and
+  confirm key repeats do not send additional messages. Confirm IME composition
+  and confirmation do not send accidentally; distinguish simulated composition
+  events from testing an actual operating-system IME.
+- Retry unchanged failed content with Enter and confirm the same client ID is
+  reused. Edit failed content and confirm a new ID. Switch conversations during
+  a delayed keyboard send and verify its response does not affect the new draft,
+  selection, or announcements. Label simulated delays/failures in QA results.
 - Open a conversation with more than 50 messages. It should display its latest
   page at the end; **Load earlier messages** adds preceding history without
   moving the message currently being read.

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { submitMessageOnEnter } from "./messageKeyboard";
+
 defineProps<{
   isSendingMessage: boolean;
   isLoadingMessages: boolean;
@@ -22,6 +24,7 @@ const emit = defineEmits<{ send: [] }>();
       <textarea
         id="message"
         v-model="messageContent"
+        @keydown="submitMessageOnEnter($event, () => emit('send'))"
         aria-describedby="message-limit"
         :aria-invalid="Boolean(contentError)"
         class="min-h-11 max-h-32 min-w-0 flex-1 resize-y rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
