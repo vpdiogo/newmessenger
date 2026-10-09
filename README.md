@@ -116,8 +116,11 @@ socket.addEventListener("message", console.log);
 
 The web client provides the same flow at `/register` and `/login`. For this MVP,
 the access token is stored in browser local storage and validated with
-`GET /auth/me` when the application loads. Production session design should
-revisit this trade-off before handling sensitive user data.
+`GET /auth/me` when the application loads. The client never renders protected
+content until that validation succeeds. A `401` clears the stored token; a
+temporary verification failure keeps it and presents a retry screen instead.
+Production session design should revisit this trade-off before handling
+sensitive user data.
 
 ## Conversations
 
