@@ -187,6 +187,10 @@ after an unconfirmed send. Editing failed content creates a new logical message
 with a new ID; it does not cancel a message already accepted by the server.
 Message content is trimmed and must contain 1 to 2,000 characters. The composer
 shows the limit and prevents submission of oversized content.
+Press Enter in the message textarea to send, or Shift+Enter to insert a newline.
+The Send button remains available. IME confirmation and held Enter key repeats
+do not send; the existing content, history-loading, and pending-send guards apply
+to both the keyboard shortcut and the button.
 
 Read a conversation's message history:
 

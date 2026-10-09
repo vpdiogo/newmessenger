@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { MessageSubmissionResult } from "../../useConversationMessages";
+import { submitMessageOnEnter } from "./messageKeyboard";
 
 const props = defineProps<{
   conversationId: string;
@@ -33,6 +34,10 @@ function isInsideComposer(target: EventTarget | null): boolean {
 }
 
 function requestSend(): void {
+  if (props.isSendingMessage || props.isLoadingMessages) {
+    emit("send", null);
+    return;
+  }
   focusAttempt = isInsideComposer(document.activeElement)
     ? { id: ++nextFocusAttemptId, conversationId: props.conversationId }
     : null;
@@ -145,6 +150,7 @@ defineExpose({ completeSubmission });
         id="message"
         ref="textarea"
         v-model="messageContent"
+        @keydown="submitMessageOnEnter($event, requestSend)"
         aria-describedby="message-limit"
         :aria-invalid="Boolean(contentError)"
         class="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"

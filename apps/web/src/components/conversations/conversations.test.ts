@@ -159,6 +159,7 @@ describe("conversation presentation boundaries", () => {
 });
 
 const composerProps = {
+  conversationId: "selected",
   modelValue: "A draft",
   isSendingMessage: false,
   isLoadingMessages: false,
