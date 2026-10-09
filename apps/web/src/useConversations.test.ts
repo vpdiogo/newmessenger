@@ -343,4 +343,39 @@ describe("conversation creation feedback", () => {
     expect(state.creationError.value).toContain("conversation was created");
     expect(state.listError.value).toBeTruthy();
   });
+
+  it("does not restore obsolete creation feedback after editing during the list refresh", async () => {
+    const { state } = await setup(`/app?conversation=${firstId}`);
+    await state.loadConversations();
+    const response = deferred<Conversation[]>();
+    api.getConversations.mockReturnValueOnce(response.promise);
+    state.participantEmail.value = "original@example.test";
+    const creating = state.submitConversation();
+    await vi.waitFor(() =>
+      expect(api.getConversations).toHaveBeenCalledTimes(2),
+    );
+    expect(state.participantEmail.value).toBe("");
+    state.participantEmail.value = "new@example.test";
+    response.reject(new TypeError("Refresh failed"));
+    await creating;
+    expect(state.creationError.value).toBeNull();
+    expect(state.listError.value).toBeTruthy();
+    expect(state.participantEmail.value).toBe("new@example.test");
+  });
+
+  it("does not publish obsolete creation feedback when input changes during POST and refresh then fails", async () => {
+    const { state } = await setup(`/app?conversation=${firstId}`);
+    await state.loadConversations();
+    const response = deferred<string>();
+    api.createConversation.mockReturnValueOnce(response.promise);
+    api.getConversations.mockRejectedValueOnce(new TypeError("Refresh failed"));
+    state.participantEmail.value = "original@example.test";
+    const creating = state.submitConversation();
+    state.participantEmail.value = "new@example.test";
+    response.resolve(thirdId);
+    await creating;
+    expect(state.creationError.value).toBeNull();
+    expect(state.listError.value).toBeTruthy();
+    expect(state.participantEmail.value).toBe("new@example.test");
+  });
 });

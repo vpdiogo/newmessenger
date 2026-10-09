@@ -183,19 +183,22 @@ export function useConversations(
       creationError.value = "You cannot start a conversation with yourself.";
       return;
     }
-    const version = inputVersion;
+    let version = inputVersion;
     const intent = selectionIntent;
     isCreatingConversation.value = true;
     try {
       const id = await createConversation(email);
       if (disposed) return;
-      if (inputVersion === version) participantEmail.value = "";
+      if (inputVersion === version) {
+        participantEmail.value = "";
+        version = inputVersion;
+      }
       const refreshed = await loadConversations();
       if (disposed) return;
-      if (!refreshed) {
+      if (!refreshed && inputVersion === version) {
         creationError.value =
           "The conversation was created, but the list could not be updated. Use Refresh to find it.";
-      } else if (selectionIntent === intent) {
+      } else if (refreshed && selectionIntent === intent) {
         await navigateToConversation(id);
       }
     } catch (error) {
