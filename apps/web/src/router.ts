@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "./views/HomeView.vue";
 import LoginView from "./views/LoginView.vue";
 import RegisterView from "./views/RegisterView.vue";
-import DashboardView from "./views/DashboardView.vue";
+import DashboardGateView from "./views/DashboardGateView.vue";
 import { clearSession, restoreSession } from "./auth/session";
 
 export const router = createRouter({
@@ -13,7 +13,7 @@ export const router = createRouter({
     { component: LoginView, name: "login", path: "/login" },
     { component: RegisterView, name: "register", path: "/register" },
     {
-      component: DashboardView,
+      component: DashboardGateView,
       meta: { requiresAuth: true },
       name: "dashboard",
       path: "/app",
@@ -22,7 +22,7 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (to.meta.requiresAuth && !(await restoreSession())) {
+  if (to.meta.requiresAuth && (await restoreSession()) === "unauthenticated") {
     return { name: "login" };
   }
 });

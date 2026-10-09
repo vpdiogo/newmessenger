@@ -173,6 +173,20 @@ Use two browser sessions, such as a normal window and a private window:
   An unknown email should produce distinct feedback. Editing the field should
   clear creation feedback without clearing an independent list error.
 
+## Verify Session Verification Recovery
+
+- Sign in, select a non-first conversation, and add another query parameter and
+  hash to the URL. Temporarily take the API offline, then reload. The token and
+  full `/app` URL should remain, but no dashboard content should render; the
+  session verification screen should offer **Retry**.
+- Restore the API and select **Retry**. The original URL, conversation
+  selection, query parameters, and hash should remain intact after the dashboard
+  becomes available.
+- Replace the stored token with an invalid value and reload. A `401` from
+  `/auth/me` should clear the token and redirect to the login screen. Network,
+  rate-limit, server, and malformed-success failures should instead keep the
+  token and require an explicit retry.
+
 ## Verify Message Recovery and Transcript Layout
 
 - Press Enter with a non-empty draft and confirm exactly one HTTP message and
