@@ -159,6 +159,16 @@ and distinguishes an unknown participant from connection/server failures.
 Editing the email clears obsolete creation feedback without hiding independent
 list-refresh errors.
 
+The selected conversation is marked with `aria-current`, and its participant
+heading names the conversation region. Full participant emails remain available
+to assistive technology even when visually truncated. Persistent polite status
+regions announce new incoming messages in the selected conversation and stable
+connection changes without moving focus. Initial history, earlier pages, own
+messages, and messages from other conversations are not announced. Newly
+recovered incoming messages are announced once by message ID; switching
+conversations cancels pending message announcements. These are screen-reader
+updates, not browser notifications or participant-presence indicators.
+
 ## Messages
 
 Send a message as a member of a conversation:

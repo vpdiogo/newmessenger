@@ -18,7 +18,10 @@ type PendingMessage = {
 
 type ScrollMode = "end" | "follow" | "preserve";
 
-export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
+export function useConversationMessages(
+  transcript: Ref<HTMLElement | null>,
+  onIncomingMessages?: (messages: Message[]) => void,
+) {
   const selectedConversationId = ref<string | null>(null);
   const messages = ref<Message[]>([]);
   const earlierCursor = ref<string | null>(null);
@@ -67,8 +70,17 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     incoming: Message[],
     version: number,
     mode: ScrollMode,
+    announce = false,
   ): Promise<void> {
     if (!isCurrent(version)) return;
+    const knownIds = new Set(messages.value.map((message) => message.id));
+    const novelMessages = announce
+      ? incoming.filter((message) => {
+          if (knownIds.has(message.id)) return false;
+          knownIds.add(message.id);
+          return true;
+        })
+      : [];
     const viewport = transcript.value;
     const scrollTop = viewport?.scrollTop ?? 0;
     const wasNearEnd =
@@ -89,8 +101,9 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
 
     messages.value = appendMessages(messages.value, incoming);
     await nextTick();
-    if (!isCurrent(version) || !viewport || viewport !== transcript.value)
-      return;
+    if (!isCurrent(version)) return;
+    if (novelMessages.length) onIncomingMessages?.(novelMessages);
+    if (!viewport || viewport !== transcript.value) return;
 
     if (mode === "end") {
       viewport.scrollTop = viewport.scrollHeight;
@@ -262,7 +275,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
 
   function handleMessageCreated(message: Message): void {
     if (message.conversationId !== selectedConversationId.value) return;
-    void applyMessages([message], selectionVersion, "follow");
+    void applyMessages([message], selectionVersion, "follow", true);
   }
 
   async function recoverMessages(): Promise<void> {
@@ -285,7 +298,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
       do {
         const history = await getMessageHistory(conversationId, cursor);
         if (!isCurrent(version)) return;
-        await applyMessages(history.messages, version, "follow");
+        await applyMessages(history.messages, version, "follow", true);
         if (!isCurrent(version)) return;
         recoveryCursor = history.messages.at(-1)?.id ?? recoveryCursor;
         cursor = history.nextCursor ?? undefined;

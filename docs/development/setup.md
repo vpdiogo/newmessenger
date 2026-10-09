@@ -196,6 +196,37 @@ Use two browser sessions, such as a normal window and a private window:
   the page must stay within the viewport. The left pane can scroll internally
   when its profile, list, form, and feedback exceed the available height.
 
+## Verify Conversation Accessibility
+
+Use Chrome with a screen reader, such as Orca on Linux, and two authenticated
+sessions. Inspecting the accessibility tree alone does not confirm spoken output.
+
+- Navigate the conversation buttons using Tab and activate them with Enter or
+  Space. Only the selected button should expose `aria-current="true"`, with its
+  full participant email. Focus styling and existing keyboard behavior must
+  remain unchanged.
+- Inspect the participant name as a level-two heading and the central pane as
+  a region named by that heading. With no selection, its name is **Conversation**.
+- Open a conversation and load earlier history: neither operation should read
+  the transcript as a new announcement. Sending your own message and receiving
+  one in another conversation must also remain silent.
+- Receive a message in the selected conversation. Expect a polite announcement
+  such as "friend@example.test says: Hello" without moving keyboard focus or
+  changing the existing scroll-follow policy. Repeated delivery of the same
+  message ID must not repeat it; identical text with distinct IDs should announce
+  each message. Closely spaced incoming messages may be announced together.
+- Disconnect long enough to expose the loss of connection, then reconnect with
+  missed messages. Expect one loss announcement, no repeated notices for rapid
+  retry attempts, an established-connection announcement, and only newly
+  recovered incoming messages. Brief disconnects should not produce noisy alerts.
+- Switch conversations while an announcement is queued. Old queued content must
+  not be announced in the new conversation. Confirm the two visually hidden
+  polite status regions do not change desktop layout or add page scrolling.
+
+Record the browser, screen reader, spoken results, and any environment limitation
+separately from automated tests and accessibility-tree checks. Do not claim
+screen-reader validation or general WCAG compliance from DOM checks alone.
+
 ## Verify the Toolchain
 
 ```bash

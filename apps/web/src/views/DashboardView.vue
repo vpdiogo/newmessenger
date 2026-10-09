@@ -15,6 +15,7 @@ import {
   useConversationMessages,
 } from "../useConversationMessages";
 import { useConversations } from "../useConversations";
+import { useConversationAnnouncements } from "../useConversationAnnouncements";
 
 const router = useRouter();
 const transcript = ref<HTMLElement | null>(null);
@@ -38,7 +39,9 @@ const {
   retryHistory,
   handleMessageCreated,
   dispose,
-} = useConversationMessages(transcript);
+} = useConversationMessages(transcript, (incoming) =>
+  announceIncomingMessages(incoming),
+);
 const {
   conversations,
   participantEmail,
@@ -65,6 +68,18 @@ const selectedConversation = computed(() =>
 
 const messageGroups = computed(() => groupTranscriptMessages(messages.value));
 
+const {
+  messageAnnouncement,
+  connectionAnnouncement,
+  announceIncomingMessages,
+  dispose: disposeAnnouncements,
+} = useConversationAnnouncements(
+  selectedConversationId,
+  () => session.user?.sub,
+  () => selectedConversation.value?.participant.email,
+  connectionState,
+);
+
 onMounted(() => {
   void loadConversations();
   connectRealtime(
@@ -83,6 +98,7 @@ onBeforeUnmount(() => {
   disconnectRealtime();
   dispose();
   disposeConversations();
+  disposeAnnouncements();
 });
 </script>
 
@@ -90,6 +106,12 @@ onBeforeUnmount(() => {
   <section
     class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
   >
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {{ messageAnnouncement }}
+    </div>
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {{ connectionAnnouncement }}
+    </div>
     <aside
       class="flex min-h-0 flex-col overflow-y-auto rounded-3xl border border-white/80 bg-sky-50/55 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
     >
@@ -166,6 +188,11 @@ onBeforeUnmount(() => {
                     : 'border-transparent bg-transparent text-slate-700 hover:bg-white/25'
                 "
                 type="button"
+                :aria-current="
+                  conversation.id === selectedConversationId
+                    ? 'true'
+                    : undefined
+                "
                 @click="openConversation(conversation.id)"
               >
                 <span
@@ -228,6 +255,9 @@ onBeforeUnmount(() => {
     </aside>
 
     <div
+      role="region"
+      :aria-labelledby="selectedConversation ? 'conversation-title' : undefined"
+      :aria-label="selectedConversation ? undefined : 'Conversation'"
       class="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur lg:h-full lg:min-h-0"
     >
       <template v-if="selectedConversation">
@@ -243,9 +273,12 @@ onBeforeUnmount(() => {
             }}
           </span>
           <div class="min-w-0">
-            <p class="truncate text-lg font-bold text-blue-950">
+            <h2
+              id="conversation-title"
+              class="truncate text-lg font-bold text-blue-950"
+            >
               {{ selectedConversation.participant.email }}
-            </p>
+            </h2>
           </div>
         </header>
         <div
