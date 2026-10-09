@@ -157,6 +157,20 @@ describe("message submission recovery", () => {
 });
 
 describe("latest history and reconnect recovery", () => {
+  it("clears selection and ignores pending history when the conversation list becomes empty", async () => {
+    const state = createState();
+    const response = deferred<MessageHistory>();
+    api.getMessageHistory.mockReturnValueOnce(response.promise);
+    const loading = state.selectConversation("conversation-a");
+    await state.selectConversation(null);
+    response.reject(new TypeError("Stale response"));
+    await loading;
+    expect(state.selectedConversationId.value).toBeNull();
+    expect(state.messages.value).toEqual([]);
+    expect(state.isLoadingMessages.value).toBe(false);
+    expect(state.historyError.value).toBeNull();
+  });
+
   it("does not skip a gap when realtime delivery precedes the initial HTTP response", async () => {
     const state = createState();
     const initialPage = deferred<MessageHistory>();

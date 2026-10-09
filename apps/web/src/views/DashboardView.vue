@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
-import {
-  type Conversation,
-  type Message,
-  createConversation,
-  getConversations,
-} from "../api/conversations";
+import { type Message } from "../api/conversations";
 import {
   connectRealtime,
   connectionState,
@@ -18,8 +14,9 @@ import {
   MESSAGE_CONTENT_LIMIT,
   useConversationMessages,
 } from "../useConversationMessages";
+import { useConversations } from "../useConversations";
 
-const conversations = ref<Conversation[]>([]);
+const router = useRouter();
 const transcript = ref<HTMLElement | null>(null);
 const {
   selectedConversationId,
@@ -42,10 +39,19 @@ const {
   handleMessageCreated,
   dispose,
 } = useConversationMessages(transcript);
-const participantEmail = ref("");
-const isLoadingConversations = ref(true);
-const isCreatingConversation = ref(false);
-const conversationErrorMessage = ref<string | null>(null);
+const {
+  conversations,
+  participantEmail,
+  isLoadingConversations,
+  isCreatingConversation,
+  listError,
+  creationError,
+  loadConversations,
+  openConversation,
+  submitConversation,
+  discoverConversation,
+  dispose: disposeConversations,
+} = useConversations(router, { selectedConversationId, selectConversation });
 
 function isOwnMessage(message: Message): boolean {
   return message.senderId === session.user?.sub;
@@ -61,49 +67,23 @@ const messageGroups = computed(() => groupTranscriptMessages(messages.value));
 
 onMounted(() => {
   void loadConversations();
-  connectRealtime(handleMessageCreated, () => {
-    void recoverMessages();
-  });
+  connectRealtime(
+    (message) => {
+      handleMessageCreated(message);
+      discoverConversation(message);
+    },
+    () => {
+      void loadConversations();
+      void recoverMessages();
+    },
+  );
 });
 
 onBeforeUnmount(() => {
   disconnectRealtime();
   dispose();
+  disposeConversations();
 });
-
-async function loadConversations(): Promise<void> {
-  isLoadingConversations.value = true;
-  conversationErrorMessage.value = null;
-
-  try {
-    conversations.value = await getConversations();
-    if (selectedConversationId.value) return;
-    const firstConversation = conversations.value[0];
-    if (firstConversation) await selectConversation(firstConversation.id);
-  } catch {
-    conversationErrorMessage.value =
-      "Unable to load conversations. Please try again.";
-  } finally {
-    isLoadingConversations.value = false;
-  }
-}
-
-async function submitConversation(): Promise<void> {
-  conversationErrorMessage.value = null;
-  isCreatingConversation.value = true;
-
-  try {
-    const conversationId = await createConversation(participantEmail.value);
-    participantEmail.value = "";
-    conversations.value = await getConversations();
-    await selectConversation(conversationId);
-  } catch {
-    conversationErrorMessage.value =
-      "Unable to create the conversation. Check that the email belongs to a registered user.";
-  } finally {
-    isCreatingConversation.value = false;
-  }
-}
 </script>
 
 <template>
@@ -164,7 +144,10 @@ async function submitConversation(): Promise<void> {
           </button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-          <p v-if="isLoadingConversations" class="text-sm text-slate-500">
+          <p
+            v-if="isLoadingConversations && conversations.length === 0"
+            class="text-sm text-slate-500"
+          >
             Loading...
           </p>
           <p
@@ -183,7 +166,7 @@ async function submitConversation(): Promise<void> {
                     : 'border-transparent bg-transparent text-slate-700 hover:bg-white/25'
                 "
                 type="button"
-                @click="selectConversation(conversation.id)"
+                @click="openConversation(conversation.id)"
               >
                 <span
                   aria-hidden="true"
@@ -206,6 +189,14 @@ async function submitConversation(): Promise<void> {
         </div>
       </section>
 
+      <p
+        v-if="listError"
+        class="mt-3 shrink-0 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+        role="alert"
+      >
+        {{ listError }}
+      </p>
+
       <form
         class="mt-5 shrink-0 border-t border-sky-100 pt-4"
         @submit.prevent="submitConversation"
@@ -227,11 +218,11 @@ async function submitConversation(): Promise<void> {
           {{ isCreatingConversation ? "Creating..." : "Start a conversation" }}
         </button>
         <p
-          v-if="conversationErrorMessage"
+          v-if="creationError"
           class="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
           role="alert"
         >
-          {{ conversationErrorMessage }}
+          {{ creationError }}
         </p>
       </form>
     </aside>

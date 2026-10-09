@@ -144,6 +144,35 @@ Use two browser sessions, such as a normal window and a private window:
    the other session. Restore the network and confirm that the disconnected
    client recovers the missed message after reconnecting.
 
+## Verify Conversation Navigation and Discovery
+
+- Select a non-first conversation and reload. Its ID should remain in the
+  `conversation` query parameter, and its participant and history should be
+  restored. Switching conversations and using browser Back/Forward should
+  restore the corresponding selection.
+- In a signed-in session, open `/app?conversation=<id>`. Only an ID in that
+  user's returned list can load history. Invalid IDs fall back to the first
+  conversation without adding a browser-history entry; other query parameters
+  and the hash remain intact. A failed initial list query should keep the
+  requested URL until retry succeeds.
+- With a draft in the selected conversation, click its item again or refresh
+  the list. The draft and transcript should remain unchanged, and existing
+  contacts should stay visible while the refresh is pending or if it fails.
+- From another account, create a conversation with the signed-in recipient
+  and send its first message. The recipient's list should discover it without
+  **Refresh**, while an existing selection and draft remain intact. Selecting
+  the discovered conversation should display its message history.
+- Test a discovery while a list query is delayed. Events arriving during that
+  request should trigger a grouped follow-up instead of being lost or producing
+  concurrent requests. Disconnect the recipient, create another conversation,
+  and reconnect to verify list recovery.
+- Create a conversation remotely without sending a message. While the socket
+  stays connected, manual **Refresh** remains necessary to discover it.
+- Try the signed-in user's email with different casing; no creation request
+  should be sent, and the form should explain the self-conversation restriction.
+  An unknown email should produce distinct feedback. Editing the field should
+  clear creation feedback without clearing an independent list error.
+
 ## Verify Message Recovery and Transcript Layout
 
 - Open a conversation with more than 50 messages. It should display its latest
