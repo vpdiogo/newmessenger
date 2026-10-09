@@ -139,6 +139,26 @@ curl http://localhost:3000/conversations \
   -H 'authorization: Bearer <accessToken>'
 ```
 
+The authenticated dashboard stores the selected conversation in
+`/app?conversation=<conversation-id>`. Reload and browser Back/Forward restore
+selection after verifying the ID against the signed-in user's conversation
+list. Invalid or unavailable IDs fall back to the first conversation; an empty
+list clears the selection. Initial list failures retain the requested URL for
+retry. Other query parameters and the URL hash are preserved.
+
+Manual and automatic list refreshes retain the current valid selection, draft,
+and transcript. An incoming `message.created` event for an unknown conversation
+refreshes the list, as does WebSocket reconnection. Concurrent refresh requests
+are grouped, with a follow-up when events arrive during an in-flight query.
+A remotely created conversation without a message still requires manual
+**Refresh** while the socket stays connected; there is no conversation-creation
+event, unread indicator, or activity-based list reordering.
+
+The conversation form rejects the signed-in user's own email case-insensitively
+and distinguishes an unknown participant from connection/server failures.
+Editing the email clears obsolete creation feedback without hiding independent
+list-refresh errors.
+
 ## Messages
 
 Send a message as a member of a conversation:

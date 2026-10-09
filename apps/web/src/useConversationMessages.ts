@@ -145,7 +145,9 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     }
   }
 
-  async function selectConversation(conversationId: string): Promise<void> {
+  async function selectConversation(
+    conversationId: string | null,
+  ): Promise<void> {
     const version = ++selectionVersion;
     selectedConversationId.value = conversationId;
     messages.value = [];
@@ -155,6 +157,7 @@ export function useConversationMessages(transcript: Ref<HTMLElement | null>) {
     sendError.value = null;
     historyError.value = null;
     isLoadingEarlier.value = false;
+    isLoadingMessages.value = false;
     isSendingMessage.value = false;
     recovering = false;
     recoveryRequested = false;
