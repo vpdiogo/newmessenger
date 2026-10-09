@@ -34,6 +34,10 @@ function isInsideComposer(target: EventTarget | null): boolean {
 }
 
 function requestSend(): void {
+  if (props.isSendingMessage || props.isLoadingMessages) {
+    emit("send", null);
+    return;
+  }
   focusAttempt = isInsideComposer(document.activeElement)
     ? { id: ++nextFocusAttemptId, conversationId: props.conversationId }
     : null;
