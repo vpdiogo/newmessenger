@@ -70,7 +70,7 @@ async function createDirectConversation(
 export const conversationRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/conversations",
-    { preHandler: app.authenticate },
+    { preHandler: [app.authenticate, app.limitHttpWrite] },
     async (request, reply) => {
       const input = createConversationSchema.safeParse(request.body);
       if (!input.success) {
