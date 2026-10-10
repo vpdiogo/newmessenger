@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Conversation } from "../../api/conversations";
+import defaultUserAvatar from "../../assets/default-user-avatar.png";
 
 defineProps<{
   conversations: Conversation[];
@@ -30,9 +31,13 @@ const emit = defineEmits<{
       <div class="flex items-center gap-2.5">
         <span
           aria-hidden="true"
-          class="grid size-11 shrink-0 place-items-center rounded-full bg-linear-to-br from-sky-400 to-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/25"
+          class="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-100/80 shadow-md shadow-emerald-950/10"
         >
-          {{ userEmail?.slice(0, 1).toUpperCase() }}
+          <img
+            alt=""
+            class="size-full object-contain p-1.5"
+            :src="defaultUserAvatar"
+          />
         </span>
         <div class="min-w-0">
           <p class="truncate text-sm font-bold text-blue-950">
@@ -104,16 +109,14 @@ const emit = defineEmits<{
             >
               <span
                 aria-hidden="true"
-                class="grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold"
-                :class="
-                  conversation.id === selectedConversationId
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-sky-100 text-sky-700 group-hover:bg-white'
-                "
-                >{{
-                  conversation.participant.email.slice(0, 1).toUpperCase()
-                }}</span
+                class="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-100/80"
               >
+                <img
+                  alt=""
+                  class="size-full object-contain p-1"
+                  :src="defaultUserAvatar"
+                />
+              </span>
               <span class="min-w-0 truncate">{{
                 conversation.participant.email
               }}</span>

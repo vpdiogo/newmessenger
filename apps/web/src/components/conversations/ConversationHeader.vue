@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import defaultUserAvatar from "../../assets/default-user-avatar.png";
+
 defineProps<{ participantEmail: string }>();
 </script>
 
@@ -8,9 +10,13 @@ defineProps<{ participantEmail: string }>();
   >
     <span
       aria-hidden="true"
-      class="grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-br from-cyan-400 to-blue-600 font-bold text-white shadow-md shadow-sky-500/25"
+      class="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100/80 shadow-md shadow-emerald-950/10"
     >
-      {{ participantEmail.slice(0, 1).toUpperCase() }}
+      <img
+        alt=""
+        class="size-full object-contain p-1.5"
+        :src="defaultUserAvatar"
+      />
     </span>
     <div class="min-w-0">
       <h2
