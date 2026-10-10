@@ -14,6 +14,12 @@ history, but this plan is not suitable for continuous production availability.
 The browser communicates only with the Fastify API. Do not expose a Supabase
 project URL, database URL, or Supabase key to the frontend.
 
+Application rate limits and trusted client-IP extraction are not implemented.
+Before enabling them, resolve the provider/ingress questions and owner approval
+gates in the [API abuse-protection decision](../architecture/api-abuse-protection.md).
+Do not use Render's outbound IP ranges as an inbound proxy allowlist or enable
+unconditional proxy trust. This documentation does not change Render settings.
+
 ```mermaid
 flowchart LR
   browser[Browser]

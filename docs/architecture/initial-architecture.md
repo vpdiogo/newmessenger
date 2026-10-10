@@ -28,6 +28,10 @@ The application is a single deployable modular monolith built with Fastify and `
 
 There is one application instance in the initial architecture.
 
+The [API abuse-protection decision](api-abuse-protection.md) specifies proposed
+single-instance quotas and the unresolved trusted-proxy rollout gate. These
+controls are not part of the current runtime.
+
 ## Components
 
 ### Node.js Application
