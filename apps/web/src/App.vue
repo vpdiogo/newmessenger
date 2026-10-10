@@ -4,7 +4,7 @@ import { logout } from "./router";
 </script>
 
 <template>
-  <main class="h-dvh overflow-hidden px-4 py-4 sm:px-6 sm:py-8">
+  <main class="h-dvh overflow-hidden px-4 py-4 sm:px-6 sm:py-4">
     <div
       class="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl border border-white/70 bg-white/35 shadow-2xl shadow-sky-950/8 backdrop-blur-2xl"
     >
