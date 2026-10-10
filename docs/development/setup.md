@@ -218,10 +218,12 @@ Use two browser sessions, such as a normal window and a private window:
   its client ID. Editing failed content should leave retry mode and submit the
   edited text with a new ID. A response lost after persistence must not produce
   a duplicate on an unchanged retry.
-- At a desktop viewport height around 680px, trigger conversation creation and
-  refresh errors. The conversation list must retain usable scroll space and
-  the page must stay within the viewport. The left pane can scroll internally
-  when its profile, list, form, and feedback exceed the available height.
+- At 1150×682 with a long profile email, check connecting, connected, and
+  disconnected status: the complete wording must fit on one line. Open the
+  conversation form and check no error, creation error, refresh error, and both
+  errors. Keep two complete contact rows, input, Start, Close, and feedback
+  visible without page scrolling. At reduced height or increased zoom, all
+  controls must remain keyboard-reachable through internal scrolling.
 
 ## Verify Conversation Accessibility
 
