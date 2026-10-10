@@ -261,6 +261,7 @@ docs/
 ## Documentation
 
 - [Initial architecture](docs/architecture/initial-architecture.md)
+- [Proposed API abuse protection](docs/architecture/api-abuse-protection.md)
 - [Local development setup](docs/development/setup.md)
 - [Production deployment](docs/deployment/production.md)
 - [Project guidelines](AGENTS.md)
