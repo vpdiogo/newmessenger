@@ -77,20 +77,18 @@ onBeforeUnmount(() => {
           <p class="truncate text-sm font-bold text-blue-950">
             {{ userEmail }}
           </p>
-          <p class="mt-1 flex items-center gap-2 text-sm text-slate-500">
-            <span
-              aria-hidden="true"
-              class="size-2 rounded-full"
-              :class="
-                connectionState === 'connected'
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-400'
-              "
-            ></span>
-            Connection: {{ connectionState }}
-          </p>
         </div>
       </div>
+      <p class="mt-1 flex items-center gap-2 text-sm text-slate-500">
+        <span
+          aria-hidden="true"
+          class="size-2 shrink-0 rounded-full"
+          :class="
+            connectionState === 'connected' ? 'bg-emerald-500' : 'bg-amber-400'
+          "
+        ></span>
+        Connection: {{ connectionState }}
+      </p>
       <p class="mt-2 text-xs leading-5 text-slate-500">
         Share this email so someone can start a conversation with you.
       </p>
