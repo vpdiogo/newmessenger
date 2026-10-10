@@ -17,11 +17,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(
-      135deg,
-      rgb(224 242 254 / 28%),
-      rgb(191 219 254 / 14%)
-    ),
+    linear-gradient(135deg, rgb(224 242 254 / 28%), rgb(191 219 254 / 14%)),
     url("./assets/meadow-wallpaper.png") center / cover fixed no-repeat;
 }
 

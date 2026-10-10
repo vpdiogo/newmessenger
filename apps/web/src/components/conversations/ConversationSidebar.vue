@@ -168,12 +168,9 @@ onBeforeUnmount(() => {
       {{ listError }}
     </p>
 
-    <div
-      ref="startConversationControl"
-      class="mt-3 shrink-0 pt-3"
-    >
+    <div ref="startConversationControl" class="mt-3 shrink-0 pt-3">
       <form
-        v-if="isStartFormOpen"
+        v-show="isStartFormOpen"
         id="start-conversation-form"
         class="mb-2 flex gap-2"
         @submit.prevent="emit('create')"

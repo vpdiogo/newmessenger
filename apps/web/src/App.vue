@@ -16,8 +16,15 @@ import newMessengerLogo from "./assets/new-messenger-logo.png";
           class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-blue-950"
           to="/"
         >
-          <span aria-hidden="true" class="grid size-9 shrink-0 place-items-center">
-            <img :src="newMessengerLogo" alt="" class="size-full object-contain" />
+          <span
+            aria-hidden="true"
+            class="grid size-9 shrink-0 place-items-center"
+          >
+            <img
+              :src="newMessengerLogo"
+              alt=""
+              class="size-full object-contain"
+            />
           </span>
           <span>New Messenger</span>
         </RouterLink>

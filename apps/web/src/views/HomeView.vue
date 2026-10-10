@@ -55,10 +55,21 @@ onMounted(async () => {
     <div
       class="rounded-xl border border-white/70 bg-sky-100/25 p-3 shadow-xl shadow-sky-950/10 backdrop-blur-2xl"
     >
-      <div class="overflow-hidden rounded-xl border border-white/75 bg-white/80 shadow-sm">
-        <div class="flex items-center gap-3 border-b border-sky-100/80 bg-sky-100/20 p-4">
-          <span aria-hidden="true" class="grid size-10 shrink-0 place-items-center">
-            <img :src="newMessengerLogo" alt="" class="size-full object-contain" />
+      <div
+        class="overflow-hidden rounded-xl border border-white/75 bg-white/80 shadow-sm"
+      >
+        <div
+          class="flex items-center gap-3 border-b border-sky-100/80 bg-sky-100/20 p-4"
+        >
+          <span
+            aria-hidden="true"
+            class="grid size-10 shrink-0 place-items-center"
+          >
+            <img
+              :src="newMessengerLogo"
+              alt=""
+              class="size-full object-contain"
+            />
           </span>
           <div>
             <p class="font-bold text-blue-950">New Messenger</p>
