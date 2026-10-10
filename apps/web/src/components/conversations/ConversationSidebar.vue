@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+
 import type { Conversation } from "../../api/conversations";
 import defaultUserAvatar from "../../assets/default-user-avatar.png";
 
@@ -21,6 +23,38 @@ const emit = defineEmits<{
   refresh: [];
   create: [];
 }>();
+
+const isStartFormOpen = ref(false);
+const participantEmailInput = ref<HTMLInputElement | null>(null);
+const startConversationControl = ref<HTMLElement | null>(null);
+
+async function openStartForm() {
+  isStartFormOpen.value = true;
+  await nextTick();
+  participantEmailInput.value?.focus();
+}
+
+function closeStartForm() {
+  isStartFormOpen.value = false;
+}
+
+function closeStartFormOnOutsideClick(event: PointerEvent) {
+  if (
+    isStartFormOpen.value &&
+    event.target instanceof Node &&
+    !startConversationControl.value?.contains(event.target)
+  ) {
+    closeStartForm();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", closeStartFormOnOutsideClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", closeStartFormOnOutsideClick);
+});
 </script>
 
 <template>
@@ -134,33 +168,56 @@ const emit = defineEmits<{
       {{ listError }}
     </p>
 
-    <form
-      class="mt-3 shrink-0 border-t border-sky-100 pt-3"
-      @submit.prevent="emit('create')"
+    <div
+      ref="startConversationControl"
+      class="mt-3 shrink-0 pt-3"
     >
-      <label class="sr-only" for="participant-email">Email address</label>
-      <input
-        id="participant-email"
-        v-model="participantEmail"
-        class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
-        placeholder="person@example.com"
-        required
-        type="email"
-      />
-      <button
-        class="mt-2 w-full rounded-2xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="isCreatingConversation"
-        type="submit"
+      <form
+        v-if="isStartFormOpen"
+        id="start-conversation-form"
+        class="mb-2 flex gap-2"
+        @submit.prevent="emit('create')"
       >
-        {{ isCreatingConversation ? "Creating..." : "Start a conversation" }}
-      </button>
+        <label class="sr-only" for="participant-email">Email address</label>
+        <input
+          id="participant-email"
+          ref="participantEmailInput"
+          v-model="participantEmail"
+          class="min-w-0 flex-1 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+          placeholder="person@example.com"
+          required
+          type="email"
+        />
+        <button
+          class="rounded-xl border border-white/75 bg-white/35 px-3 py-2 text-sm font-semibold text-blue-800 shadow-sm shadow-sky-950/5 hover:bg-white/55 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isCreatingConversation"
+          type="submit"
+        >
+          {{ isCreatingConversation ? "Creating..." : "Start" }}
+        </button>
+      </form>
       <p
         v-if="creationError"
-        class="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+        class="mb-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
         role="alert"
       >
         {{ creationError }}
       </p>
-    </form>
+      <button
+        class="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white/20 px-2 py-1.5 text-left text-sm font-medium text-slate-600 shadow-sm shadow-sky-950/5 backdrop-blur-sm hover:bg-white/35 hover:text-blue-800"
+        type="button"
+        :aria-expanded="isStartFormOpen"
+        aria-controls="start-conversation-form"
+        @click="isStartFormOpen ? closeStartForm() : openStartForm()"
+      >
+        <span
+          aria-hidden="true"
+          class="grid size-6 shrink-0 place-items-center rounded-full border border-sky-500 text-base leading-none text-sky-700"
+        >
+          {{ isStartFormOpen ? "×" : "+" }}
+        </span>
+        <span>{{ isStartFormOpen ? "Close" : "Start a conversation" }}</span>
+      </button>
+    </div>
   </aside>
 </template>
