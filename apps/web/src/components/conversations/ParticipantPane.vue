@@ -4,7 +4,7 @@ defineProps<{ participantEmail?: string }>();
 
 <template>
   <aside
-    class="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-white/70 bg-sky-100/30 shadow-lg shadow-sky-950/5 backdrop-blur-xl xl:flex"
+    class="hidden min-h-0 flex-col overflow-hidden rounded-xl border border-white/70 bg-sky-100/30 shadow-lg shadow-sky-950/5 backdrop-blur-xl xl:flex"
   >
     <template v-if="participantEmail !== undefined">
       <div class="border-b border-white/45 bg-white/28 p-4 text-center">

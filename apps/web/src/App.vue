@@ -6,7 +6,7 @@ import { logout } from "./router";
 <template>
   <main class="h-dvh overflow-hidden px-4 py-4 sm:px-6 sm:py-8">
     <div
-      class="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/35 shadow-2xl shadow-sky-950/8 backdrop-blur-2xl"
+      class="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl border border-white/70 bg-white/35 shadow-2xl shadow-sky-950/8 backdrop-blur-2xl"
     >
       <header
         class="shrink-0 flex flex-wrap items-center justify-between gap-2 px-5 pt-2.5 pb-1 sm:px-6"
@@ -55,7 +55,7 @@ import { logout } from "./router";
           </template>
         </nav>
       </header>
-      <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-4">
+      <div class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-3">
         <RouterView />
       </div>
     </div>

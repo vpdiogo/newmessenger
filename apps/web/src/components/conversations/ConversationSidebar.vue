@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
 <template>
   <aside
-    class="flex min-h-0 flex-col overflow-y-auto rounded-2xl border border-white/70 bg-sky-100/30 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
+    class="flex min-h-0 flex-col overflow-y-auto rounded-xl border border-white/70 bg-sky-100/30 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
   >
     <section class="mb-2 shrink-0 border-b border-sky-100 pb-2">
       <div class="flex items-center gap-2.5">

@@ -141,7 +141,7 @@ defineExpose({ completeSubmission });
 <template>
   <form
     ref="form"
-    class="shrink-0 rounded-2xl border border-white/60 bg-sky-100/20 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
+    class="shrink-0 rounded-xl border border-white/60 bg-sky-100/20 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
     @submit.prevent="requestSend"
   >
     <label class="sr-only" for="message">Message</label>

@@ -25,7 +25,7 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
 <template>
   <div
     :ref="setViewport"
-    class="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-2xl border border-white/80 bg-white/80 px-4 py-4 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-6 [overflow-anchor:none]"
+    class="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-xl border border-white/80 bg-white/80 px-4 py-4 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-6 [overflow-anchor:none]"
   >
     <button
       v-if="earlierCursor"

@@ -4,7 +4,7 @@ defineProps<{ participantEmail: string }>();
 
 <template>
   <header
-    class="flex items-center gap-2.5 rounded-2xl border border-white/60 bg-sky-100/20 px-4 py-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-5"
+    class="flex items-center gap-2.5 rounded-xl border border-white/60 bg-sky-100/20 px-4 py-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-5"
   >
     <span
       aria-hidden="true"
