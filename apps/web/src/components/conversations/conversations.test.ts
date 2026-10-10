@@ -89,6 +89,9 @@ describe("conversation presentation boundaries", () => {
     expect(html).toContain("Conversation creation failed");
     expect(html.match(/role="alert"/g)).toHaveLength(2);
     expect(html).toContain('for="participant-email"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-controls="start-conversation-form"');
+    expect(html).toContain('id="start-conversation-form"');
   });
 
   it("does not mark an arbitrary conversation current when selection is empty", async () => {

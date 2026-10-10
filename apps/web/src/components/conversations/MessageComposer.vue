@@ -141,11 +141,11 @@ defineExpose({ completeSubmission });
 <template>
   <form
     ref="form"
-    class="shrink-0 border-t border-sky-100 bg-sky-50/55 p-4 sm:p-5"
+    class="shrink-0 rounded-xl border border-white/60 bg-sky-100/20 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
     @submit.prevent="requestSend"
   >
     <label class="sr-only" for="message">Message</label>
-    <div class="flex items-end gap-3">
+    <div class="flex items-end gap-2.5">
       <textarea
         id="message"
         ref="textarea"
@@ -153,13 +153,13 @@ defineExpose({ completeSubmission });
         @keydown="submitMessageOnEnter($event, requestSend)"
         aria-describedby="message-limit"
         :aria-invalid="Boolean(contentError)"
-        class="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+        class="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-sky-100 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
         placeholder="Type a message..."
         required
         rows="1"
       />
       <button
-        class="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        class="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="
           isSendingMessage ||
           isLoadingMessages ||

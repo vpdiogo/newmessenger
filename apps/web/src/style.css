@@ -17,17 +17,8 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(
-      circle at top left,
-      rgb(186 230 253 / 80%),
-      transparent 35rem
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgb(199 210 254 / 70%),
-      transparent 32rem
-    ),
-    linear-gradient(135deg, #eff6ff, #e0f2fe 48%, #eef2ff);
+    linear-gradient(135deg, rgb(224 242 254 / 28%), rgb(191 219 254 / 14%)),
+    url("./assets/meadow-wallpaper.png") center / cover fixed no-repeat;
 }
 
 #app {
@@ -51,6 +42,21 @@ button:not(:disabled) {
 }
 
 :focus-visible {
-  outline: 3px solid rgb(14 165 233 / 55%);
-  outline-offset: 3px;
+  outline: 2px solid rgb(14 165 233 / 55%);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: rgb(14 165 233 / 80%);
+  box-shadow: 0 0 0 2px rgb(14 165 233 / 28%);
+}
+
+@media (forced-colors: active) {
+  :focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid Highlight;
+  }
 }

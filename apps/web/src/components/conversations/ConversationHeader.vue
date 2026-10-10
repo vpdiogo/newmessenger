@@ -1,16 +1,22 @@
 <script setup lang="ts">
+import defaultUserAvatar from "../../assets/default-user-avatar.png";
+
 defineProps<{ participantEmail: string }>();
 </script>
 
 <template>
   <header
-    class="flex items-center gap-3 border-b border-sky-100 bg-sky-50/55 px-5 py-4 sm:px-6"
+    class="flex items-center gap-2.5 rounded-xl border border-white/60 bg-sky-100/20 px-4 py-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-5"
   >
     <span
       aria-hidden="true"
-      class="grid size-11 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-cyan-400 to-blue-600 font-bold text-white shadow-md shadow-sky-500/25"
+      class="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100/80 shadow-md shadow-emerald-950/10"
     >
-      {{ participantEmail.slice(0, 1).toUpperCase() }}
+      <img
+        alt=""
+        class="size-full object-contain p-1.5"
+        :src="defaultUserAvatar"
+      />
     </span>
     <div class="min-w-0">
       <h2
