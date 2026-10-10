@@ -24,13 +24,13 @@ const emit = defineEmits<{
 
 <template>
   <aside
-    class="flex min-h-0 flex-col overflow-y-auto rounded-3xl border border-white/80 bg-sky-50/55 p-4 shadow-lg shadow-sky-950/5 backdrop-blur sm:p-5"
+    class="flex min-h-0 flex-col overflow-y-auto rounded-2xl border border-white/70 bg-sky-100/30 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
   >
-    <section class="mb-3 shrink-0 border-b border-sky-100 pb-3">
-      <div class="flex items-center gap-3">
+    <section class="mb-2 shrink-0 border-b border-sky-100 pb-2">
+      <div class="flex items-center gap-2.5">
         <span
           aria-hidden="true"
-          class="grid size-12 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-sky-400 to-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/25"
+          class="grid size-11 shrink-0 place-items-center rounded-full bg-linear-to-br from-sky-400 to-blue-600 text-sm font-bold text-white shadow-md shadow-sky-500/25"
         >
           {{ userEmail?.slice(0, 1).toUpperCase() }}
         </span>
@@ -52,13 +52,13 @@ const emit = defineEmits<{
           </p>
         </div>
       </div>
-      <p class="mt-3 text-xs leading-5 text-slate-500">
+      <p class="mt-2 text-xs leading-5 text-slate-500">
         Share this email so someone can start a conversation with you.
       </p>
     </section>
 
     <section class="flex min-h-36 flex-1 flex-col">
-      <div class="mb-3 flex shrink-0 items-center justify-between">
+      <div class="mb-2 flex shrink-0 items-center justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
             Messages
@@ -87,13 +87,13 @@ const emit = defineEmits<{
         >
           No conversations yet. Start one using a contact email.
         </p>
-        <ul v-else class="space-y-1.5">
+        <ul v-else class="space-y-1">
           <li v-for="conversation in conversations" :key="conversation.id">
             <button
-              class="group flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold"
+              class="group flex w-full items-center gap-2.5 rounded-2xl border px-3 py-2 text-left text-sm font-semibold"
               :class="
                 conversation.id === selectedConversationId
-                  ? 'border-sky-300/70 bg-sky-200/65 text-blue-950 shadow-sm shadow-sky-950/10'
+                  ? 'border-sky-300/55 bg-sky-200/45 text-blue-950 shadow-sm shadow-sky-950/10'
                   : 'border-transparent bg-transparent text-slate-700 hover:bg-white/25'
               "
               type="button"
@@ -125,27 +125,27 @@ const emit = defineEmits<{
 
     <p
       v-if="listError"
-      class="mt-3 shrink-0 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+      class="mt-2 shrink-0 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
       role="alert"
     >
       {{ listError }}
     </p>
 
     <form
-      class="mt-5 shrink-0 border-t border-sky-100 pt-4"
+      class="mt-3 shrink-0 border-t border-sky-100 pt-3"
       @submit.prevent="emit('create')"
     >
       <label class="sr-only" for="participant-email">Email address</label>
       <input
         id="participant-email"
         v-model="participantEmail"
-        class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
+        class="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
         placeholder="person@example.com"
         required
         type="email"
       />
       <button
-        class="mt-2.5 w-full rounded-2xl bg-blue-600 px-3 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        class="mt-2 w-full rounded-2xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="isCreatingConversation"
         type="submit"
       >
@@ -153,7 +153,7 @@ const emit = defineEmits<{
       </button>
       <p
         v-if="creationError"
-        class="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+        class="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
         role="alert"
       >
         {{ creationError }}

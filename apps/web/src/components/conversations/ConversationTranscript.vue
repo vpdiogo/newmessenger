@@ -25,7 +25,7 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
 <template>
   <div
     :ref="setViewport"
-    class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-8 [overflow-anchor:none]"
+    class="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-2xl border border-white/70 bg-white/40 px-4 py-4 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:px-6 [overflow-anchor:none]"
   >
     <button
       v-if="earlierCursor"
@@ -54,7 +54,7 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
         </p>
       </div>
     </div>
-    <ol v-else class="space-y-5">
+    <ol v-else class="space-y-4">
       <li
         v-for="(group, index) in groups"
         :key="`${group.dateKey}-${group.senderId}-${group.messages[0]?.id}`"
@@ -62,7 +62,7 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
       >
         <div
           v-if="index === 0 || groups[index - 1]?.dateKey !== group.dateKey"
-          class="mb-5 flex items-center gap-3 text-xs font-medium text-slate-400"
+          class="mb-4 flex items-center gap-3 text-xs font-medium text-slate-400"
         >
           <span aria-hidden="true" class="h-px flex-1 bg-sky-100"></span>
           <time>{{ group.dateLabel }}</time>

@@ -154,7 +154,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section
-    class="grid min-h-0 gap-5 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
+    class="grid min-h-0 gap-3 lg:h-full lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)_17rem]"
   >
     <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
       {{ messageAnnouncement }}
@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
       role="region"
       :aria-labelledby="selectedConversation ? 'conversation-title' : undefined"
       :aria-label="selectedConversation ? undefined : 'Conversation'"
-      class="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-lg shadow-sky-950/5 backdrop-blur lg:h-full lg:min-h-0"
+      class="flex min-h-[32rem] min-w-0 flex-col gap-3 lg:h-full lg:min-h-0"
     >
       <template v-if="selectedConversation">
         <ConversationHeader
@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
       </template>
       <div
         v-else
-        class="grid flex-1 place-items-center bg-linear-to-br from-white/60 to-sky-50/70 p-8 text-center"
+        class="grid flex-1 place-items-center rounded-2xl border border-white/70 bg-white/40 p-8 text-center shadow-lg shadow-sky-950/5 backdrop-blur-xl"
       >
         <div class="max-w-sm">
           <span
