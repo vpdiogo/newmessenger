@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { session } from "./auth/session";
 import { logout } from "./router";
+import newMessengerLogo from "./assets/new-messenger-logo.png";
 </script>
 
 <template>
@@ -15,11 +16,8 @@ import { logout } from "./router";
           class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-blue-950"
           to="/"
         >
-          <span
-            aria-hidden="true"
-            class="grid size-8 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-500 text-base shadow-md shadow-sky-500/25"
-          >
-            ✦
+          <span aria-hidden="true" class="grid size-9 shrink-0 place-items-center">
+            <img :src="newMessengerLogo" alt="" class="size-full object-contain" />
           </span>
           <span>New Messenger</span>
         </RouterLink>

@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 
 import { getHealthStatus } from "../api/health";
+import newMessengerLogo from "../assets/new-messenger-logo.png";
 
 const status = ref<"checking" | "available" | "unavailable">("checking");
 
@@ -52,20 +53,19 @@ onMounted(async () => {
       </div>
     </div>
     <div
-      class="rounded-3xl border border-white/90 bg-linear-to-br from-sky-100/90 via-white/85 to-indigo-100/90 p-6 shadow-xl shadow-sky-950/10"
+      class="rounded-xl border border-white/70 bg-sky-100/25 p-3 shadow-xl shadow-sky-950/10 backdrop-blur-2xl"
     >
-      <div class="rounded-2xl border border-white bg-white/75 p-5 shadow-sm">
-        <div class="mb-6 flex items-center gap-3">
-          <span
-            class="grid size-11 place-items-center rounded-2xl bg-sky-500 text-lg font-bold text-white"
-            >N</span
-          >
+      <div class="overflow-hidden rounded-xl border border-white/75 bg-white/80 shadow-sm">
+        <div class="flex items-center gap-3 border-b border-sky-100/80 bg-sky-100/20 p-4">
+          <span aria-hidden="true" class="grid size-10 shrink-0 place-items-center">
+            <img :src="newMessengerLogo" alt="" class="size-full object-contain" />
+          </span>
           <div>
             <p class="font-bold text-blue-950">New Messenger</p>
             <p class="text-sm text-slate-500">Ready when you are</p>
           </div>
         </div>
-        <div class="space-y-4 text-sm leading-6">
+        <div class="space-y-4 p-4 text-sm leading-6">
           <div>
             <p class="font-bold text-blue-700">You say:</p>
             <p class="text-slate-700">Let’s get this conversation started.</p>
