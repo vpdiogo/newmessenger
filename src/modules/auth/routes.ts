@@ -4,6 +4,8 @@ import argon2 from "argon2";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
+import { registrationSchema, registrationFieldErrors } from "./registration.js";
+
 const credentialsSchema = z.object({
   email: z.email(),
   password: z.string().min(12).max(256),
@@ -20,8 +22,14 @@ function credentials(body: unknown) {
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/auth/register", async (request, reply) => {
-    const input = credentials(request.body);
-    if (!input) return reply.code(400).send({ message: "Invalid request" });
+    const parsed = registrationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        message: "Invalid request",
+        fieldErrors: registrationFieldErrors(parsed.error),
+      });
+    }
+    const input = { ...parsed.data, email: parsed.data.email.toLowerCase() };
 
     const passwordHash = await argon2.hash(input.password, {
       type: argon2.argon2id,
@@ -43,7 +51,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         "code" in error &&
         error.code === "23505"
       ) {
-        return reply.code(409).send({ message: "Email already registered" });
+        return reply.code(409).send({
+          message: "Email already registered",
+          fieldErrors: { email: "email_registered" },
+        });
       }
       throw error;
     }

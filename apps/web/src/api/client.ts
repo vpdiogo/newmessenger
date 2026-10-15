@@ -7,9 +7,12 @@ const apiBaseUrl = (
 export class ApiError extends Error {
   readonly status: number;
 
-  constructor(status: number, message: string) {
+  readonly fieldErrors: unknown;
+
+  constructor(status: number, message: string, fieldErrors?: unknown) {
     super(message);
     this.status = status;
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -32,7 +35,13 @@ export async function requestJson(
   const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new ApiError(response.status, errorMessage(data));
+    throw new ApiError(
+      response.status,
+      errorMessage(data),
+      typeof data === "object" && data !== null && "fieldErrors" in data
+        ? data.fieldErrors
+        : undefined,
+    );
   }
 
   return data;

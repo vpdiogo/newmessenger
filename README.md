@@ -89,7 +89,22 @@ set.
 
 Set `JWT_SECRET` to a secret with at least 32 characters; `.env.example` contains a development-only value. Apply migrations before starting the server.
 
-Register with an email address and a password from 12 to 256 characters:
+Register with an email address and a password from 15 to 256 characters.
+Use a unique, long password or several unrelated words. Spaces, accents and
+symbols are accepted; character categories are not required. Whitespace-only
+passwords and passwords containing the complete email address (case-insensitively)
+are rejected. Passwords are never trimmed or Unicode-normalized. Length follows
+the existing backend Unicode code-point convention (an emoji counts as one),
+consistently on both sides.
+
+The new policy applies only to registration. Login retains its 12–256-character
+validation so existing accounts remain compatible. Registration failures preserve
+the existing `message` and status codes (`400` invalid input, `409` duplicate email)
+and may add `fieldErrors` with known email/password codes. The web client associates
+feedback with fields, clears or reevaluates it on relevant edits, and falls back
+to generic feedback for older or unexpected API responses.
+
+Example registration:
 
 ```bash
 curl -X POST http://localhost:3000/auth/register \

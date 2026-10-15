@@ -44,3 +44,28 @@ describe("requestJson", () => {
     expect(headers.get("authorization")).toBe("Bearer access-token");
   });
 });
+
+it("retains optional field feedback on ApiError without requiring it", async () => {
+  vi.stubGlobal("localStorage", memoryStorage());
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Invalid request",
+          fieldErrors: { password: "password_length" },
+        }),
+        { status: 400 },
+      ),
+    ),
+  );
+  try {
+    await expect(requestJson("/auth/register")).rejects.toMatchObject({
+      status: 400,
+      message: "Invalid request",
+      fieldErrors: { password: "password_length" },
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
