@@ -276,3 +276,19 @@ pnpm web:typecheck
 pnpm web:test
 pnpm web:build
 ```
+
+## Verify HTTP Write Limits
+
+`HTTP_WRITE_RATE_LIMIT_ENABLED` defaults to `false`. Set it to `true` in the local
+backend environment and restart the server to exercise 20 conversation attempts
+per user/hour and 60 message attempts per user/minute. Existing-pair creation
+and unchanged message retries count. Confirm the next attempt returns `429` with
+`Retry-After` and `Cache-Control: no-store`; reads and session verification must
+still work. After cooldown, manually retry the original message client ID and
+confirm there is one stored message. Turn the switch off and restart to verify
+quota bypass. The 32 KiB body limit remains active in either configuration.
+
+Use temporary local users, never production load tests. Deterministic tests inject
+a monotonic clock to verify expiry without waiting an hour. Production activation,
+monitoring, rollback and deferred IP controls are described in
+[API Abuse Protection](../architecture/api-abuse-protection.md).

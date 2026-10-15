@@ -5,6 +5,10 @@ const environmentSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
+  HTTP_WRITE_RATE_LIMIT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   HOST: z.string().min(1).default("0.0.0.0"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_000),
   CORS_ORIGIN: z.url().default("http://localhost:5173"),

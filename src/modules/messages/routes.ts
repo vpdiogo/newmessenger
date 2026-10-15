@@ -55,7 +55,7 @@ async function isConversationMember(
 export const messageRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/conversations/:conversationId/messages",
-    { preHandler: app.authenticate },
+    { preHandler: [app.authenticate, app.limitHttpWrite] },
     async (request, reply) => {
       const params = conversationParamsSchema.safeParse(request.params);
       const input = createMessageSchema.safeParse(request.body);

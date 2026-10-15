@@ -6,6 +6,7 @@ const app = await buildApp({
   corsOrigin: environment.CORS_ORIGIN,
   databaseUrl: environment.DATABASE_URL,
   jwtSecret: environment.JWT_SECRET,
+  httpWriteRateLimitEnabled: environment.HTTP_WRITE_RATE_LIMIT_ENABLED,
 });
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
