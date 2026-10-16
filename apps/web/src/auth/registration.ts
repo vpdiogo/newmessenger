@@ -85,6 +85,7 @@ export function useRegistrationForm(
   );
 
   async function submit(): Promise<boolean> {
+    if (isSubmitting.value) return false;
     attempted.value = true;
     errorMessage.value = null;
     serverErrors.value = {};

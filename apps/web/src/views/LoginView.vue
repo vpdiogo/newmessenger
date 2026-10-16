@@ -1,32 +1,16 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { ApiError } from "../api/client";
 import { loginSession } from "../auth/session";
+import { useLoginForm } from "../auth/login";
 
 const router = useRouter();
-const email = ref("");
-const password = ref("");
-const errorMessage = ref<string | null>(null);
-const isSubmitting = ref(false);
-
-async function submit(): Promise<void> {
-  errorMessage.value = null;
-  isSubmitting.value = true;
-
-  try {
-    await loginSession({ email: email.value, password: password.value });
+const { email, password, errorMessage, isSubmitting, submit } = useLoginForm(
+  async (credentials) => {
+    await loginSession(credentials);
     await router.push({ name: "dashboard" });
-  } catch (error) {
-    errorMessage.value =
-      error instanceof ApiError && error.status === 401
-        ? "Invalid email or password."
-        : "Unable to log in. Please try again.";
-  } finally {
-    isSubmitting.value = false;
-  }
-}
+  },
+);
 </script>
 
 <template>
@@ -43,11 +27,16 @@ async function submit(): Promise<void> {
           Pick up where your conversations left off.
         </p>
       </div>
-      <form class="space-y-4" @submit.prevent="submit">
+      <form
+        :aria-busy="isSubmitting"
+        class="space-y-4"
+        @submit.prevent="submit"
+      >
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
           Email
           <input
             v-model="email"
+            :disabled="isSubmitting"
             autocomplete="email"
             class="block w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
             required
@@ -58,6 +47,7 @@ async function submit(): Promise<void> {
           Password
           <input
             v-model="password"
+            :disabled="isSubmitting"
             autocomplete="current-password"
             class="block w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
             minlength="12"

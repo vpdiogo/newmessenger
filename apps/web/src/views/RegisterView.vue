@@ -33,11 +33,17 @@ const {
           Set up your address and join the conversation.
         </p>
       </div>
-      <form class="space-y-4" novalidate @submit.prevent="submit">
+      <form
+        :aria-busy="isSubmitting"
+        class="space-y-4"
+        novalidate
+        @submit.prevent="submit"
+      >
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
           Email
           <input
             v-model="email"
+            :disabled="isSubmitting"
             id="registration-email"
             :aria-invalid="emailError ? 'true' : undefined"
             :aria-describedby="
@@ -61,6 +67,7 @@ const {
           Password
           <input
             v-model="password"
+            :disabled="isSubmitting"
             id="registration-password"
             :aria-invalid="passwordError ? 'true' : undefined"
             :aria-describedby="
@@ -116,3 +123,11 @@ const {
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (min-width: 640px) and (max-height: 760px) {
+  section {
+    padding-block: 1rem;
+  }
+}
+</style>
