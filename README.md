@@ -129,6 +129,13 @@ const socket = new WebSocket("ws://localhost:3000/ws", [
 socket.addEventListener("message", console.log);
 ```
 
+Login and registration disable their email/password fields and submit button
+while submitting, expose a busy state, and prevent concurrent duplicate requests.
+Failures re-enable the controls and preserve entered values for correction and
+manual retry. Default forms fit a 1150 × 682 viewport; errors, smaller windows
+and increased zoom may require scrolling so all guidance and controls remain
+accessible.
+
 The web client provides the same flow at `/register` and `/login`. For this MVP,
 the access token is stored in browser local storage and validated with
 `GET /auth/me` when the application loads. The client never renders protected

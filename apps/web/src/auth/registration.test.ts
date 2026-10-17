@@ -131,3 +131,52 @@ describe("registration policy and feedback", () => {
     expect(state.emailError.value).toBeUndefined();
   });
 });
+
+it("admits one pending registration, preserves fields on failure and permits corrected retry", async () => {
+  let reject!: (error: Error) => void;
+  const state = form();
+  state.register.mockImplementationOnce(
+    () =>
+      new Promise<void>((_, fail) => {
+        reject = fail;
+      }),
+  );
+  const pending = state.submit();
+  expect(state.isSubmitting.value).toBe(true);
+  expect(await state.submit()).toBe(false);
+  expect(state.register).toHaveBeenCalledTimes(1);
+  reject(new ApiError(409, "Email already registered"));
+  await pending;
+  expect(state.isSubmitting.value).toBe(false);
+  expect(state.email.value).toBe("user@example.test");
+  expect(state.password.value).toBe("river lantern mango orbit");
+  expect(state.emailError.value).toContain("already registered");
+  state.email.value = "corrected@example.test";
+  expect(await state.submit()).toBe(true);
+  expect(state.register).toHaveBeenCalledTimes(2);
+});
+
+it("does not revalidate changed credentials or reset feedback while a registration is pending", async () => {
+  let resolve!: () => void;
+  const state = form();
+  state.register.mockImplementationOnce(
+    () =>
+      new Promise<void>((accept) => {
+        resolve = accept;
+      }),
+  );
+  const pending = state.submit();
+  state.email.value = "changed@example.test";
+  state.password.value = "short";
+  expect(state.passwordError.value).toBeDefined();
+  expect(await state.submit()).toBe(false);
+  expect(state.register).toHaveBeenCalledTimes(1);
+  expect(state.register).toHaveBeenCalledWith({
+    email: "user@example.test",
+    password: "river lantern mango orbit",
+  });
+  expect(state.passwordError.value).toBeDefined();
+  resolve();
+  expect(await pending).toBe(true);
+  expect(state.isSubmitting.value).toBe(false);
+});
