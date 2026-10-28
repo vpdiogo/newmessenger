@@ -2,7 +2,7 @@ import { ref, watch, type Ref } from "vue";
 
 import type { Message } from "./api/conversations";
 
-type ConnectionState = "connecting" | "connected" | "disconnected";
+import { CONNECTION_LIMIT_MESSAGE, type ConnectionState } from "./connection";
 
 export function useConversationAnnouncements(
   conversationId: Ref<string | null>,
@@ -16,7 +16,7 @@ export function useConversationAnnouncements(
   let pendingMessages: string[] = [];
   let messageTimer: ReturnType<typeof setTimeout> | undefined;
   let connectionTimer: ReturnType<typeof setTimeout> | undefined;
-  let lastConnection: "connected" | "disconnected" | undefined;
+  let lastConnection: "connected" | "disconnected" | "limited" | undefined;
   let disposed = false;
 
   function clearMessageAnnouncements(): void {
@@ -65,9 +65,17 @@ export function useConversationAnnouncements(
     (state) => {
       clearTimeout(connectionTimer);
       connectionTimer = undefined;
-      if (disposed || state === "connecting" || state === lastConnection)
+      if (
+        disposed ||
+        state === "connecting" ||
+        state === "retrying-limit" ||
+        state === lastConnection
+      )
         return;
-      if (state === "connected") {
+      if (state === "limited") {
+        lastConnection = state;
+        connectionAnnouncement.value = CONNECTION_LIMIT_MESSAGE;
+      } else if (state === "connected") {
         lastConnection = state;
         connectionAnnouncement.value = "Connection established.";
       } else {

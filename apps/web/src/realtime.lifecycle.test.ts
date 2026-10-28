@@ -6,7 +6,7 @@ class DelayedCloseSocket {
   static instances: DelayedCloseSocket[] = [];
   readonly listeners = new Map<
     string,
-    ((event?: { data: string }) => void)[]
+    ((event?: { data?: string; code?: number }) => void)[]
   >();
 
   constructor() {
@@ -15,7 +15,7 @@ class DelayedCloseSocket {
 
   addEventListener(
     event: string,
-    listener: (event?: { data: string }) => void,
+    listener: (event?: { data?: string; code?: number }) => void,
   ): void {
     const listeners = this.listeners.get(event) ?? [];
     listeners.push(listener);
@@ -26,7 +26,7 @@ class DelayedCloseSocket {
     // Browser close() starts an asynchronous closing handshake.
   }
 
-  emit(event: string, payload?: { data: string }): void {
+  emit(event: string, payload?: { data?: string; code?: number }): void {
     for (const listener of this.listeners.get(event) ?? []) listener(payload);
   }
 }
@@ -126,6 +126,36 @@ it("does not let an old closing socket disconnect a new dashboard connection", a
     expect.soft(connectionState.value).toBe("connected");
     vi.advanceTimersByTime(1000);
     expect.soft(DelayedCloseSocket.instances).toHaveLength(2);
+  } finally {
+    disconnectRealtime();
+  }
+});
+
+it("ignores an obsolete capacity close and clears capacity state on owner disposal", async () => {
+  const {
+    connectRealtime,
+    disconnectRealtime,
+    retryRealtime,
+    connectionState,
+  } = await import("./realtime");
+  try {
+    connectRealtime(vi.fn());
+    const old = DelayedCloseSocket.instances[0]!;
+    disconnectRealtime();
+    connectRealtime(vi.fn());
+    const current = DelayedCloseSocket.instances[1]!;
+    current.emit("open");
+    old.emit("close", { code: 4008 });
+    expect(connectionState.value).toBe("connected");
+    current.emit("close", { code: 4008 });
+    expect(connectionState.value).toBe("limited");
+    disconnectRealtime();
+    connectRealtime(vi.fn());
+    retryRealtime();
+    expect(connectionState.value).toBe("connecting");
+    expect(DelayedCloseSocket.instances).toHaveLength(3);
+    vi.advanceTimersByTime(3000);
+    expect(DelayedCloseSocket.instances).toHaveLength(3);
   } finally {
     disconnectRealtime();
   }

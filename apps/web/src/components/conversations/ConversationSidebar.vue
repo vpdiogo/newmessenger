@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 
+import type { ConnectionState } from "../../connection";
+
 import type { Conversation } from "../../api/conversations";
 import defaultUserAvatar from "../../assets/default-user-avatar.png";
 
@@ -8,7 +10,7 @@ defineProps<{
   conversations: Conversation[];
   selectedConversationId: string | null;
   userEmail?: string;
-  connectionState: "connecting" | "connected" | "disconnected";
+  connectionState: ConnectionState;
   isLoadingConversations: boolean;
   isCreatingConversation: boolean;
   listError: string | null;
@@ -87,7 +89,10 @@ onBeforeUnmount(() => {
             connectionState === 'connected' ? 'bg-emerald-500' : 'bg-amber-400'
           "
         ></span>
-        Connection: {{ connectionState }}
+        Connection:
+        {{
+          connectionState === "retrying-limit" ? "connecting" : connectionState
+        }}
       </p>
       <p class="mt-2 text-xs leading-5 text-slate-500">
         Share this email so someone can start a conversation with you.

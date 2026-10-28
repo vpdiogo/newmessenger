@@ -6,6 +6,8 @@ const app = await buildApp({
   corsOrigin: environment.CORS_ORIGIN,
   databaseUrl: environment.DATABASE_URL,
   jwtSecret: environment.JWT_SECRET,
+  websocketConnectionLimitEnabled:
+    environment.WEBSOCKET_CONNECTION_LIMIT_ENABLED,
   httpWriteRateLimitEnabled: environment.HTTP_WRITE_RATE_LIMIT_ENABLED,
 });
 

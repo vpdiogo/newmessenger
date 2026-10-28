@@ -11,7 +11,9 @@ import {
   connectRealtime,
   connectionState,
   disconnectRealtime,
+  retryRealtime,
 } from "../realtime";
+import { CONNECTION_LIMIT_MESSAGE } from "../connection";
 import { session } from "../auth/session";
 import { groupTranscriptMessages } from "../transcript";
 import {
@@ -183,6 +185,24 @@ onBeforeUnmount(() => {
       :aria-label="selectedConversation ? undefined : 'Conversation'"
       class="flex min-h-[32rem] min-w-0 flex-col gap-1.5 lg:h-full lg:min-h-0"
     >
+      <div
+        v-if="
+          connectionState === 'limited' || connectionState === 'retrying-limit'
+        "
+        class="shrink-0 max-h-32 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+      >
+        <p>{{ CONNECTION_LIMIT_MESSAGE }}</p>
+        <button
+          type="button"
+          :disabled="connectionState === 'retrying-limit'"
+          class="mt-1 rounded-lg px-2 py-1 font-semibold underline disabled:cursor-not-allowed disabled:opacity-60"
+          @click="retryRealtime"
+        >
+          {{
+            connectionState === "retrying-limit" ? "Connecting..." : "Try again"
+          }}
+        </button>
+      </div>
       <template v-if="selectedConversation">
         <ConversationHeader
           :participant-email="selectedConversation.participant.email"

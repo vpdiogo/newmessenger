@@ -4,9 +4,9 @@ import type { Message } from "./api/conversations";
 import { isMessage } from "./api/conversations";
 import { getAccessToken } from "./auth/token";
 
-export const connectionState = ref<"connecting" | "connected" | "disconnected">(
-  "disconnected",
-);
+import type { ConnectionState } from "./connection";
+
+export const connectionState = ref<ConnectionState>("disconnected");
 
 let socket: WebSocket | undefined;
 let reconnectTimer: number | undefined;
@@ -21,16 +21,34 @@ export function connectRealtime(
   onMessageCreated = handler;
   onConnected = connectedHandler;
   shouldReconnect = true;
+  openConnection(false);
+}
+
+export function retryRealtime(): void {
+  if (connectionState.value !== "limited" || socket || !onMessageCreated)
+    return;
+  openConnection(true);
+}
+
+function openConnection(manual: boolean): void {
   const accessToken = getAccessToken();
   if (!accessToken || socket) return;
   if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
   reconnectTimer = undefined;
 
-  connectionState.value = "connecting";
-  const currentSocket = new WebSocket(webSocketUrl(), ["bearer", accessToken]);
+  connectionState.value = manual ? "retrying-limit" : "connecting";
+  if (manual) shouldReconnect = false;
+  let currentSocket: WebSocket;
+  try {
+    currentSocket = new WebSocket(webSocketUrl(), ["bearer", accessToken]);
+  } catch {
+    connectionState.value = manual ? "limited" : "disconnected";
+    return;
+  }
   socket = currentSocket;
   currentSocket.addEventListener("open", () => {
     if (socket !== currentSocket) return;
+    shouldReconnect = true;
     connectionState.value = "connected";
     onConnected?.();
   });
@@ -53,9 +71,16 @@ export function connectRealtime(
       onMessageCreated?.(data.data);
     }
   });
-  currentSocket.addEventListener("close", () => {
+  currentSocket.addEventListener("close", (event) => {
     if (socket !== currentSocket) return;
     socket = undefined;
+    if (event?.code === 4008 || !shouldReconnect) {
+      shouldReconnect = false;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
+      connectionState.value = "limited";
+      return;
+    }
     connectionState.value = "disconnected";
     if (shouldReconnect) {
       reconnectTimer = window.setTimeout(() => {
