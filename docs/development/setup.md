@@ -1,307 +1,102 @@
-# Local Development Setup
+# Local Development
+
+Use this guide to prepare an existing clone and run the application. It does not
+recreate package manifests, TypeScript configuration or migrations.
 
 ## Prerequisites
 
-- Node.js LTS, managed with `nvm`.
-- `pnpm`, enabled through Corepack.
+- Node.js LTS and Corepack. The local workflow is verified with Node.js 24;
+  `render.yaml` pins Node.js 22.12.0 for the backend deployment separately.
+- Docker with the Compose plugin.
+- pnpm 12.9.1, selected by `package.json` through `corepack pnpm`.
 
-## Initialize the Project
+Run commands below from the repository root. If Corepack is unavailable, install
+it using its supported installation instructions. If package-signature checks
+fail, fix/update the Corepack installation rather than disabling verification.
 
-```bash
-nvm install --lts
-nvm use --lts
-
-corepack enable
-
-pnpm init
-pnpm pkg set type=module
-
-pnpm add -D typescript@npm:@typescript/typescript6@^6.0.2 @types/node tsx
-```
-
-## Approve Required Build Scripts
-
-`tsx` uses `esbuild`, which includes a build script. Recent versions of pnpm require explicit approval before running dependency build scripts.
+## Install and Configure
 
 ```bash
-pnpm approve-builds
+corepack pnpm install --frozen-lockfile
 ```
 
-Select `argon2` and `esbuild`, then confirm the selection. This is an expected installation step, not an application error.
-
-## Configure TypeScript
-
-```bash
-pnpm exec tsc6 --init \
-  --strict \
-  --target ES2024 \
-  --module NodeNext \
-  --moduleResolution NodeNext \
-  --rootDir src \
-  --outDir dist \
-  --sourceMap \
-  --declaration \
-  --declarationMap
-
-mkdir -p src test
-```
-
-## Run PostgreSQL Locally
-
-Start the local database container:
-
-```bash
-docker compose up -d
-docker compose ps
-```
-
-The database is available at:
-
-```text
-postgresql://newmessenger:newmessenger@localhost:5435/newmessenger
-```
-
-Copy the example environment file before adding local values:
+The workspace already permits `argon2` and `esbuild` build scripts through
+`pnpm-workspace.yaml`; normal installation does not require editing approvals or
+adding dependencies. For a new clone, create local configuration:
 
 ```bash
 cp .env.example .env
-```
-
-Stop the container while preserving its data:
-
-```bash
-docker compose down
-```
-
-Open a PostgreSQL shell when needed:
-
-```bash
-docker compose exec postgres psql -U newmessenger -d newmessenger
-```
-
-## Run Migrations
-
-Apply all pending migrations:
-
-```bash
-pnpm migration:up
-```
-
-Create a new JavaScript migration:
-
-```bash
-pnpm migration:create add-users
-```
-
-Revert the most recently applied migration:
-
-```bash
-pnpm migration:down
-```
-
-## Run the Application
-
-Start the backend after the database, environment file, and migrations are
-ready:
-
-```bash
-pnpm dev
-```
-
-The backend listens on `http://localhost:3000`. Keep this process running while
-developing the web client.
-
-## Use Visual Studio Code
-
-Open the repository root in Visual Studio Code. The `.vscode/extensions.json` file recommends the ESLint and Prettier extensions.
-
-The workspace settings format JavaScript and TypeScript files with Prettier and run ESLint fixes whenever a file is explicitly saved. Reload the VS Code window if the project was already open when the workspace settings were added.
-
-## Run the Web Client
-
-The Vue client lives in `apps/web`. Copy its local environment example, then
-start it in a second terminal while the backend is running:
-
-```bash
 cp apps/web/.env.example apps/web/.env
-pnpm web:dev
 ```
 
-It listens on `http://localhost:5173` and calls `VITE_API_BASE_URL`, which
-defaults to `http://localhost:3000`. The backend permits that origin through
-`CORS_ORIGIN`; set a different value in `.env` when the frontend runs elsewhere.
+Skip either copy if the file exists. Do not overwrite local values or commit
+secrets. `.env.example` contains local development defaults only.
 
-## Manually Verify Real-Time Messaging
+| Variable                             | Purpose/default                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                       | Required backend PostgreSQL URI; local Compose uses port 5435.                        |
+| `JWT_SECRET`                         | Required, at least 32 characters; replace the example outside local development.      |
+| `HOST`, `PORT`                       | Backend listener, defaults `0.0.0.0:3000`.                                            |
+| `CORS_ORIGIN`                        | Exact permitted browser origin, defaults `http://localhost:5173`.                     |
+| `NODE_ENV`                           | `development`, `test` or `production`; defaults to `development`.                     |
+| `HTTP_WRITE_RATE_LIMIT_ENABLED`      | Literal `true`/`false`, default `false`.                                              |
+| `WEBSOCKET_CONNECTION_LIMIT_ENABLED` | Literal `true`/`false`, default `false`, independent of HTTP limits.                  |
+| `VITE_API_BASE_URL`                  | Public frontend API URL, defaults to `http://localhost:3000`; never put secrets here. |
 
-Use two browser sessions, such as a normal window and a private window:
+The backend reads `.env` when `loadEnvironment()` runs. Restart it after changes.
+Vite reads `apps/web/.env`; restart the dev server after changes and rebuild a
+production frontend to change its embedded API URL.
 
-1. Register two users and sign in to each session.
-2. Create a direct conversation from one account using the other user's email.
-3. In the other session, click **Refresh** and select the new conversation.
-4. Send a message in one session and confirm that it appears in the other
-   without a refresh.
-5. Use browser DevTools to take one session offline, then send a message from
-   the other session. Restore the network and confirm that the disconnected
-   client recovers the missed message after reconnecting.
-
-## Verify Conversation Navigation and Discovery
-
-- Select a non-first conversation and reload. Its ID should remain in the
-  `conversation` query parameter, and its participant and history should be
-  restored. Switching conversations and using browser Back/Forward should
-  restore the corresponding selection.
-- In a signed-in session, open `/app?conversation=<id>`. Only an ID in that
-  user's returned list can load history. Invalid IDs fall back to the first
-  conversation without adding a browser-history entry; other query parameters
-  and the hash remain intact. A failed initial list query should keep the
-  requested URL until retry succeeds.
-- With a draft in the selected conversation, click its item again or refresh
-  the list. The draft and transcript should remain unchanged, and existing
-  contacts should stay visible while the refresh is pending or if it fails.
-- From another account, create a conversation with the signed-in recipient
-  and send its first message. The recipient's list should discover it without
-  **Refresh**, while an existing selection and draft remain intact. Selecting
-  the discovered conversation should display its message history.
-- Test a discovery while a list query is delayed. Events arriving during that
-  request should trigger a grouped follow-up instead of being lost or producing
-  concurrent requests. Disconnect the recipient, create another conversation,
-  and reconnect to verify list recovery.
-- Create a conversation remotely without sending a message. While the socket
-  stays connected, manual **Refresh** remains necessary to discover it.
-- Try the signed-in user's email with different casing; no creation request
-  should be sent, and the form should explain the self-conversation restriction.
-  An unknown email should produce distinct feedback. Editing the field should
-  clear creation feedback without clearing an independent list error.
-
-## Verify Session Verification Recovery
-
-- Sign in, select a non-first conversation, and add another query parameter and
-  hash to the URL. Temporarily take the API offline, then reload. The token and
-  full `/app` URL should remain, but no dashboard content should render; the
-  session verification screen should offer **Retry**.
-- Restore the API and select **Retry**. The original URL, conversation
-  selection, query parameters, and hash should remain intact after the dashboard
-  becomes available.
-- Replace the stored token with an invalid value and reload. A `401` from
-  `/auth/me` should clear the token and redirect to the login screen. Network,
-  rate-limit, server, and malformed-success failures should instead keep the
-  token and require an explicit retry.
-
-## Verify Message Recovery and Transcript Layout
-
-- Press Enter with a non-empty draft and confirm exactly one HTTP message and
-  real-time delivery. Shift+Enter must insert a newline without sending; the
-  visible Send button must still work. Confirm the shortcut does not move focus
-  or announce your own message as incoming.
-- Confirm Enter does not send empty, whitespace-only, or oversized drafts,
-  during initial history loading, or while a send is pending. Hold Enter and
-  confirm key repeats do not send additional messages. Confirm IME composition
-  and confirmation do not send accidentally; distinguish simulated composition
-  events from testing an actual operating-system IME.
-- Retry unchanged failed content with Enter and confirm the same client ID is
-  reused. Edit failed content and confirm a new ID. Switch conversations during
-  a delayed keyboard send and verify its response does not affect the new draft,
-  selection, or announcements. Label simulated delays/failures in QA results.
-- Open a conversation with more than 50 messages. It should display its latest
-  page at the end; **Load earlier messages** adds preceding history without
-  moving the message currently being read.
-- Receive messages while near the end and while reading earlier content. Only
-  the first case should follow the end automatically. Successful local sends
-  should always reveal the sent message.
-- Disconnect one session and send more than 50 messages from the other. After
-  reconnecting, all missed messages should recover without duplicates, while
-  the reader's position is retained when away from the end.
-- Try a draft longer than 2,000 trimmed characters. The composer should keep
-  the text, explain the limit, and block submission. Shortening it should allow
-  sending without reloading.
-- Simulate a failed message request. Retrying unchanged content should reuse
-  its client ID. Editing failed content should leave retry mode and submit the
-  edited text with a new ID. A response lost after persistence must not produce
-  a duplicate on an unchanged retry.
-- At 1150×682 with a long profile email, check connecting, connected, and
-  disconnected status: the complete wording must fit on one line. Open the
-  conversation form and check no error, creation error, refresh error, and both
-  errors. Keep two complete contact rows, input, Start, Close, and feedback
-  visible without page scrolling. At reduced height or increased zoom, all
-  controls must remain keyboard-reachable through internal scrolling.
-
-## Verify Conversation Accessibility
-
-For frontend ownership/lifecycle regression QA, also leave the dashboard and
-return quickly while the previous socket is closing. The replacement connection
-must stay connected, with no extra socket or stale events from the old owner.
-When reproducing delays with instrumentation, label that scenario as simulated.
-After leaving the feature entirely, pending history, scroll effects, discovery,
-and announcement callbacks must not alter the disposed feature.
-
-Use Chrome with a screen reader, such as Orca on Linux, and two authenticated
-sessions. Inspecting the accessibility tree alone does not confirm spoken output.
-
-- Navigate the conversation buttons using Tab and activate them with Enter or
-  Space. Only the selected button should expose `aria-current="true"`, with its
-  full participant email. Focus styling and existing keyboard behavior must
-  remain unchanged.
-- Inspect the participant name as a level-two heading and the central pane as
-  a region named by that heading. With no selection, its name is **Conversation**.
-- Open a conversation and load earlier history: neither operation should read
-  the transcript as a new announcement. Sending your own message and receiving
-  one in another conversation must also remain silent.
-- Receive a message in the selected conversation. Expect a polite announcement
-  such as "friend@example.test says: Hello" without moving keyboard focus or
-  changing the existing scroll-follow policy. Repeated delivery of the same
-  message ID must not repeat it; identical text with distinct IDs should announce
-  each message. Closely spaced incoming messages may be announced together.
-- Disconnect long enough to expose the loss of connection, then reconnect with
-  missed messages. Expect one loss announcement, no repeated notices for rapid
-  retry attempts, an established-connection announcement, and only newly
-  recovered incoming messages. Brief disconnects should not produce noisy alerts.
-- Switch conversations while an announcement is queued. Old queued content must
-  not be announced in the new conversation. Confirm the two visually hidden
-  polite status regions do not change desktop layout or add page scrolling.
-
-Record the browser, screen reader, spoken results, and any environment limitation
-separately from automated tests and accessibility-tree checks. Do not claim
-screen-reader validation or general WCAG compliance from DOM checks alone.
-
-## Verify the Toolchain
+## Start Database and Application
 
 ```bash
-pnpm exec tsx --version
-pnpm exec tsc6 --version
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm web:typecheck
-pnpm web:test
-pnpm web:build
+docker compose up -d --wait
+corepack pnpm migration:up
+corepack pnpm dev
 ```
 
-## Verify HTTP Write Limits
+Start the frontend in a second terminal from the same root:
 
-`HTTP_WRITE_RATE_LIMIT_ENABLED` defaults to `false`. Set it to `true` in the local
-backend environment and restart the server to exercise 20 conversation attempts
-per user/hour and 60 message attempts per user/minute. Existing-pair creation
-and unchanged message retries count. Confirm the next attempt returns `429` with
-`Retry-After` and `Cache-Control: no-store`; reads and session verification must
-still work. After cooldown, manually retry the original message client ID and
-confirm there is one stored message. Turn the switch off and restart to verify
-quota bypass. The 32 KiB body limit remains active in either configuration.
+```bash
+corepack pnpm web:dev
+```
 
-Use temporary local users, never production load tests. Deterministic tests inject
-a monotonic clock to verify expiry without waiting an hour. Production activation,
-monitoring, rollback and deferred IP controls are described in
-[API Abuse Protection](../architecture/api-abuse-protection.md).
+Open `http://localhost:5173` and verify the API with:
 
-## Verify WebSocket Connection Capacity
+```bash
+curl http://localhost:3000/health
+docker compose exec -T postgres psql -U newmessenger -d newmessenger -c 'SELECT 1'
+```
 
-Enable `WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` locally and restart the backend.
-Open six dashboard tabs with the same local account: five should stay connected;
-the sixth must show manual recovery guidance without repeating attempts. Close
-one accepted tab and select **Try again** in the refused tab; verify conversation
-discovery and missed messages recover without duplicates. Check draft/selection
-and HTTP sending while limited, keyboard access, a compact window, and leaving
-and returning to the dashboard. Turn the switch off and restart to confirm more
-than five valid connections work. Use temporary local accounts, not production
-load tests. Activation and limitations are described in
-[API Abuse Protection](../architecture/api-abuse-protection.md).
+Health returns `200` with `{ "status": "ok" }`; the SQL query separately checks
+database readiness. The local database is PostgreSQL 17, exposed on port 5435.
+Use `localhost` for Vite, which may bind IPv6. Reuse matching running services
+instead of starting duplicates.
+
+## Checks and Maintenance
+
+| Command (prefix with `corepack pnpm`) | Purpose                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| `lint`, `format:check`                | Repository lint and read-only formatting checks.                               |
+| `typecheck`, `web:typecheck`          | Backend/test and frontend types.                                               |
+| `test`, `web:test`                    | Backend integration/unit and frontend suites.                                  |
+| `build`, `web:build`                  | Backend and frontend production builds.                                        |
+| `start`                               | Run the compiled backend after `build`; database/configuration still required. |
+| `migration:create <name>`             | Create a migration for an approved schema change.                              |
+| `format`                              | Rewrite formatting; use deliberately, not as a read-only check.                |
+
+Start the local database and apply migrations before backend integration tests.
+Some tests skip without local database configuration; inspect test counts and
+skips rather than relying solely on the exit code. Choose checks relevant to the
+change and follow [AGENTS.md](../../AGENTS.md) for delivery requirements.
+
+`docker compose down` stops local PostgreSQL while retaining its volume. Do not
+add `--volumes` unless you intend to delete that local data. Migration rollback
+(`corepack pnpm migration:down`) changes schema/data and requires inspecting the
+migration first; use the [production procedure](../deployment/production.md) for
+release decisions, not local example credentials.
+
+For feature QA, use the [verification guide](verification.md). If startup fails,
+check Compose health, port conflicts, `.env` values and migration output first;
+for browser failures check `CORS_ORIGIN` and `VITE_API_BASE_URL`. The repository's
+`.vscode` settings recommend ESLint and Prettier but are not required to run it.

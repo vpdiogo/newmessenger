@@ -40,10 +40,9 @@ the original message without another insert or event.
 
 ## Activation and rollback
 
-The owner enables the switch only after local enabled/disabled QA. Set
-`HTTP_WRITE_RATE_LIMIT_ENABLED=true` in the hosting environment and apply its
-restart/redeploy procedure. Only literal `true` and `false` are accepted.
-Implementation does not mutate production or provider settings.
+Owner-controlled activation and restart/redeploy/rollback steps are in
+[production guidance](../deployment/production.md#activate-or-disable-abuse-controls).
+Only literal `true` and `false` are accepted for either switch.
 
 Observe aggregate `429`/`503` counts, legitimate-user complaints and existing
 resource/request metrics. Rejection logs contain route template, category
@@ -52,11 +51,9 @@ correlation ID. They add no user IDs, IPs, emails, headers, tokens or message
 content. Existing Fastify request logging still includes connection metadata;
 this change does not redesign global log privacy or add per-user metrics.
 
-If legitimate use is unduly blocked, set the switch to `false` and restart or
-redeploy. This bypasses quota/capacity checks while retaining the body limit.
-The existing release rollback remains available. The frontend already preserves
-failed message text and client ID after `429`; it offers manual retry, without a
-Retry-After countdown or automatic outgoing resend.
+Disabling the HTTP switch bypasses quota/capacity checks while retaining the body
+limit. The frontend preserves failed message text/client ID after `429` and offers
+manual retry, without a Retry-After countdown or automatic outgoing resend.
 
 ## WebSocket occupancy stage — #44
 
@@ -89,20 +86,15 @@ before `4008`; the backend has not admitted that socket. This accepted limitatio
 does not introduce an acceptance-confirmation protocol. Successful manual retry
 reuses existing message deduplication and scroll behavior.
 
-The owner enables/disables the flag through hosting environment settings and
-restarts/redeploys, after enabled/disabled local QA. Observe aggregate occupancy,
-capacity rejections and legitimate-use impact. Disable and restart/redeploy or
-roll back the release for undue blocking. Multiple instances do not share slots.
-This is not a handshake-attempt/IP limit: upgrade work and unauthenticated
-connection volume remain outside this stage. No production settings are changed
-by implementation.
+Multiple instances do not share slots. This is not a handshake-attempt/IP limit:
+upgrade work and unauthenticated connection volume remain outside this stage.
 
 ## Deferred controls and Render research
 
 [#43](https://github.com/vpdiogo/newmessenger/issues/43) records the approved HTTP
 scope and tracks deferred IP interpretation, platform adapter, IP quotas and
-email budgets. [#44](https://github.com/vpdiogo/newmessenger/issues/44) plans the
-separate per-user WebSocket occupancy control and manual recovery described
+email budgets. [#44](https://github.com/vpdiogo/newmessenger/issues/44) records the
+implemented per-user WebSocket occupancy control and manual recovery described
 above. Auth-volume limits remain unimplemented.
 The earlier broader [#41](https://github.com/vpdiogo/newmessenger/issues/41)
 proposal is superseded for this stage; its proxy approval gate applies only to

@@ -1,243 +1,128 @@
-# Initial Architecture
+# Architecture
 
-## Goal
+## Original Baseline and Current Design
 
-Build the smallest reliable real-time messenger for learning the Node.js ecosystem and system design fundamentals.
+The original goal was the smallest reliable one-to-one messenger for learning
+Node.js and system design. Its core decisions remain current: one Fastify modular
+monolith, PostgreSQL as durable truth, HTTP writes, best-effort WebSocket events,
+and HTTP history recovery. The Vue application is a separate static deployment,
+not a second backend service.
 
-The initial roadmap supports authenticated one-to-one text messaging. Messages are persisted through HTTP and delivered in real time when a member is connected.
-
-## System Context
+The current implementation adds routing, presentation/effect separation, session
+recovery, registration feedback and opt-in abuse controls within those boundaries.
+A deployment diagram alone does not justify Redis or additional services.
 
 ```mermaid
 flowchart LR
-  alice["Alice web client<br/>Vue"]
-  bob["Bob web client<br/>Vue"]
-  app["Node.js modular monolith<br/>Fastify"]
-  database[("PostgreSQL")]
-  sockets["In-memory connections<br/>Map&lt;userId, Set&lt;WebSocket&gt;&gt;"]
-
-  alice -->|HTTP writes and reads| app
-  bob -->|HTTP writes and reads| app
-  alice <-->|WebSocket events| app
-  bob <-->|WebSocket events| app
-  app -->|Durable state| database
+  client[Vue browser client]
+  app[Fastify modular monolith]
+  db[(PostgreSQL)]
+  sockets[Instance-local socket registry]
+  client -->|HTTP writes and reads| app
+  app -->|WebSocket events| client
+  app -->|Durable state| db
   app --- sockets
 ```
 
-The application is a single deployable modular monolith built with Fastify and `@fastify/websocket`. It owns the HTTP API, WebSocket connections, authentication, message persistence, and real-time delivery.
+## Backend Responsibilities
 
-There is one application instance in the initial architecture.
+| Boundary                                           | Responsibility                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `src/app.ts`, `src/server.ts`, `src/config/env.ts` | Compose plugins/routes, validate environment, listen and close the application.                        |
+| `src/modules/auth/`, `src/plugins/auth.ts`         | Registration policy, Argon2id hashing, login and JWT verification.                                     |
+| `src/modules/conversations/`                       | Resolve participants, enforce canonical direct pairs and list memberships.                             |
+| `src/modules/messages/`                            | Validate requests/membership, persist idempotently, publish after persistence and read cursor history. |
+| `src/plugins/postgres.ts`                          | Own the PostgreSQL pool and close it with the app.                                                     |
+| `src/plugins/realtime.ts`, `src/modules/realtime/` | Own sockets, authenticate admission, enforce optional occupancy and deliver events.                    |
+| `src/limits/`, `src/plugins/http-write-limit.ts`   | Application-owned fixed windows and authenticated write admission before database work.                |
 
-The [API abuse-protection decision](api-abuse-protection.md) specifies proposed
-single-instance quotas and the unresolved trusted-proxy rollout gate. These
-controls are not part of the current runtime.
+Route-local SQL and validation keep the current small modules understandable.
+There is no demonstrated need for a generic repository/service layer. A new
+abstraction should remove concrete duplicated responsibility, not merely wrap a
+query. Fastify plugin encapsulation and application-scoped resources remain the
+composition mechanism.
 
-## Components
+The schema contains `users`, `conversations`, `direct_conversations`,
+`conversation_members` and `messages`. Ordered unique user pairs prevent duplicate
+direct conversations. Memberships use a composite key; messages have
+`UNIQUE(sender_id, client_message_id)` and a chronological conversation index.
+Migrations are explicit release steps, not application-start side effects.
 
-### Node.js Application
+## Message Write and Recovery
 
-- Exposes HTTP endpoints for authentication, conversations, sending messages, and message history.
-- Exposes a WebSocket endpoint for real-time events.
-- Authenticates WebSocket connections using a JWT in the WebSocket subprotocol.
-- Validates all HTTP input.
-- Persists messages before reporting successful acceptance through HTTP.
-- Keeps a `Map<userId, Set<WebSocket>>` of connected client devices.
-- Delivers a persisted message immediately to each connected member socket.
+1. Verify JWT, apply the enabled user quota, validate payload and check membership.
+2. Persist the message. An unchanged sender/client ID returns the original row.
+3. For a new row, attempt `message.created` fan-out to connected members. Delivery
+   failure does not undo persistence; a retry does not publish a duplicate event.
+4. Return the stored message through HTTP. HTTP responses and socket events can
+   arrive in either order; the client merges by message ID.
 
-### PostgreSQL
+Latest/earlier history and forward recovery use `(created_at, id)` cursor order.
+PostgreSQL microseconds are retained in response timestamps. Recovery advances
+from the HTTP history cursor, not the latest realtime-rendered message, so an
+out-of-order event cannot cause an intervening persisted message to be skipped.
 
-PostgreSQL is the source of truth for users, conversations, members, and messages. A client reconnecting after an offline period recovers messages through the HTTP history endpoint.
+The browser starts its recovery callback on WebSocket `open`, not on
+`connection.accepted`. A subsequently rejected socket can briefly look connected
+and trigger HTTP recovery. This is an accepted limitation; see the
+[contracts](api-contracts.md) and [abuse controls](api-abuse-protection.md).
 
-### Clients
+## Frontend Ownership
 
-The Vue client uses `fetch` for request-response operations and the native
-WebSocket API for server-initiated events. It stores the MVP JWT in browser
-local storage, validates it through `GET /auth/me` during startup, and protects
-authenticated client routes.
+`DashboardView.vue` is the feature composition root. It connects these owners,
+wires incoming events to message/discovery handlers, and disposes them on exit:
 
-The client creates messages through HTTP with a generated `clientMessageId`.
-If a send fails, it retries with the same ID. It deduplicates HTTP responses and
-`message.created` events by message ID, reconnects its WebSocket after a close,
-and requests history after its last successfully loaded/recovered HTTP cursor
-to recover missed events without skipping intervening content when newer
-realtime messages arrive.
-The connection status is exposed in the conversation UI.
+| Owner                                                   | Responsibility                                                                                                           |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `auth/session.ts`, `router.ts`, `DashboardGateView.vue` | Session verification and protected-route gating; recover transient verification failures without exposing the dashboard. |
+| `auth/login.ts`, `auth/registration.ts`                 | Form values, feedback and single pending authentication submission.                                                      |
+| `useConversations.ts`                                   | Contact list, creation feedback and grouped refresh/discovery requests.                                                  |
+| `useConversationRoute.ts`                               | Read-only selected ID derived from URL and the loaded list, URL corrections and navigation intent.                       |
+| `useConversationMessages.ts`                            | Current draft/send state, history cursors, ID deduplication and recovery.                                                |
+| `useTranscriptScroll.ts`                                | DOM geometry and post-render restoration/follow behavior.                                                                |
+| `useConversationAnnouncements.ts`                       | Source-aware incoming-message and connection announcements, batching and timer cleanup.                                  |
+| `realtime.ts`                                           | One active dashboard socket, current-socket callback guards, automatic reconnect and manual capacity recovery.           |
 
-### Frontend Presentation Boundaries
+Typed update effects join message state to scroll/announcement behavior without
+putting DOM measurement into data state. Initial/local sends reveal the end;
+earlier pages preserve the reading anchor; realtime/recovery follow only near
+the end. Incoming announcements exclude own messages, initial/earlier history and
+already-known IDs.
 
-The dashboard owns the feature's composable instances, selected-participant
-derivation, realtime event wiring, connection lifetime, and persistent polite
-announcement regions. Its presentational sections live in
-`apps/web/src/components/conversations/`:
+Components under `components/conversations/` render controlled data and emit
+intents. Local presentation state, such as the expandable Start a conversation
+form, stays with its component. It does not create a competing selected-ID or
+message store. The right participant panel contains decorative avatar/email
+information, not a profile/settings model.
 
-- `ConversationSidebar` renders the account, contact list, creation form, and
-  feedback. It emits selection, refresh, and creation intents.
-- `ConversationHeader` renders the participant heading that names the central
-  conversation region.
-- `ConversationTranscript` renders grouped messages, history controls, and
-  loading/empty states. Its viewport event supplies the actual `HTMLElement`
-  (or `null` on removal) to the dashboard's existing transcript ref, preserving
-  the scroll controller's element identity and render timing.
-- `MessageComposer` renders the controlled draft, limit, submission guard, and
-  Send/Retry state. Its model updates the existing draft and its send intent
-  invokes the existing idempotent submission action.
-- `ParticipantPane` renders the selected participant or its empty state.
+Session and transport singletons assume one active dashboard per browser page;
+each tab is independent. Disposal invalidates pending callbacks and closes the
+owned socket. Request versions prevent late responses/effects from changing a
+new selection. They do not cancel server-side work or preserve per-conversation
+drafts: switching conversations currently clears draft/retry state (pending #58).
 
-These components do not fetch data, navigate, connect sockets, or own independent
-conversation/message stores. Props, model updates, and emitted intents keep the
-existing feature owners explicit; component extraction adds no wrapper layout.
+## Security and Operational Boundaries
 
-### Frontend State and Effect Ownership
+JWTs expire after 15 minutes. The MVP stores them in browser local storage;
+`/auth/me` verifies and returns claims, not a live profile or email-ownership check.
+There is no token revocation/refresh or account-management flow. WebSocket JWTs
+are checked at connection admission; established sockets do not revalidate expiry.
+The client currently also retries `1008` policy closes automatically.
 
-- `useConversations` owns conversation data, creation input/feedback, and grouped
-  refresh requests. It exposes list readiness separately from an empty list and
-  returns the created ID only after the refreshed list is available. It neither
-  imports Vue Router nor selects message state.
-- `useConversationRoute` resolves the requested URL against that list and owns
-  the read-only selected ID, URL correction, Back/Forward handling, navigation
-  errors, and selection intent. A failed first list query retains the requested
-  URL; a successfully empty list clears selection.
-- `useConversationMessages` consumes that selection and synchronously
-  invalidates old requests when it changes. It owns drafts, idempotent sends,
-  history cursors, deduplication, and recovery, without owning DOM geometry.
-- `useTranscriptScroll` owns viewport measurement and restoration. The typed
-  `beforeMessagesUpdate(source, isCurrent)` hook captures geometry before the
-  message merge and returns an asynchronous completion effect that waits for
-  Vue rendering. Message state awaits it before notifying incoming-message
-  consumers. The validity predicate prevents old effects acting on a new
-  conversation, and viewport identity guards prevent restoration on a replaced
-  element.
-- The update sources are `initial`, `earlier`, `realtime`, `recovery`, and
-  `local-send`. Initial/local sends reveal the end, earlier history preserves
-  the reading anchor, and realtime/recovery follow only near the end.
-- `useConversationAnnouncements` receives only novel incoming realtime/recovery
-  content from the message pipeline; it does not watch the full transcript to
-  infer arrivals. Its own-author, ID, and context guards retain announcement
-  semantics across routing and reconnection.
+The always-active body limit and default-off HTTP/WebSocket controls are
+implemented. Their thresholds, failure contracts, local-state limitations and
+owner activation procedure live in [API abuse protection](api-abuse-protection.md).
+Trustworthy forwarded-IP extraction and auth/email request quotas remain deferred.
+CORS restricts browser origins; it is not authorization or abuse prevention.
 
-The dashboard intentionally remains the small composition root: it passes
-read-only selection and typed effects between owners, coordinates creation
-completion against the route's captured intent, and keeps the creation control
-busy through its navigation phase. There is no second mutable selected-ID store,
-generic event bus, or broad dashboard controller.
+## Evolution Boundaries
 
-The same dashboard owns one active realtime connection lifetime. Incoming
-transport events update message state and trigger discovery; reconnect refreshes
-the list and recovers history. On disposal it disconnects the transport and
-disposes data, route, messages, scroll, and announcement effects. `realtime.ts`
-retains the existing single-active-dashboard assumption and one-second retry
-delay. Socket callbacks act only on the currently owned socket, and disconnect
-invalidates ownership before asynchronous closing, so delayed events cannot
-change a replacement connection or publish into its callbacks.
+The current architecture has no Redis, queues, workers, presence, groups,
+attachments, push notifications, search or end-to-end encryption. Cross-instance
+fan-out requires a demonstrated multi-instance need (#17); it would not make
+local quotas or socket occupancy globally enforced. Add infrastructure only
+for an approved requirement, with explicit failure/recovery behavior.
 
-## Message Flow
-
-```mermaid
-sequenceDiagram
-  participant Alice
-  participant App as Node.js application
-  participant DB as PostgreSQL
-  participant Bob
-
-  Alice->>App: POST /conversations/:id/messages
-  App->>App: Validate JWT, membership, and payload
-  App->>DB: INSERT message
-  DB-->>App: Persisted message
-  App->>DB: Read conversation members
-  App-->>Alice: 201 persisted message
-  App-->>Alice: message.created (if connected)
-  App-->>Bob: message.created (if connected)
-
-  Note over App,Bob: Delivery is best-effort. Offline clients<br/>recover through HTTP message history.
-```
-
-Persisting before delivery is mandatory. WebSocket delivery is best-effort; PostgreSQL provides recovery after a failed connection or application restart.
-
-## Data Model
-
-```text
-users
-  id, email, password_hash, created_at
-
-conversations
-  id, created_at
-
-conversation_members
-  conversation_id, user_id
-
-messages
-  id, conversation_id, sender_id, client_message_id, content, created_at
-```
-
-Current constraints and indexes:
-
-- A canonical unique user pair prevents duplicate direct conversations.
-- The composite primary key on `(conversation_id, user_id)` prevents duplicate memberships.
-- `UNIQUE(sender_id, client_message_id)` makes message retries idempotent.
-- An index on `(conversation_id, created_at ASC, id)` supports chronological message history.
-- Conversation membership is checked before reading or sending messages.
-
-## WebSocket Contract
-
-WebSocket connections authenticate through `Sec-WebSocket-Protocol` with
-`bearer, <JWT>`. The current events are:
-
-```text
-Server -> Client: connection.accepted
-Server -> Client: message.created
-```
-
-Messages are sent through the HTTP API. WebSocket delivery is an optional real-time notification, not the durable write path.
-
-## Client Delivery and Recovery
-
-```mermaid
-sequenceDiagram
-  participant Client as Vue client
-  participant App as Node.js application
-  participant DB as PostgreSQL
-
-  Client->>App: WebSocket closes
-  Client->>App: Reconnect WebSocket with JWT subprotocol
-  App-->>Client: connection.accepted
-  Client->>App: GET messages?cursor=last-rendered-message
-  App->>DB: Read newer messages
-  DB-->>App: Chronological messages
-  App-->>Client: Message history
-  Client->>Client: Deduplicate and render
-```
-
-Recovery does not make WebSocket delivery durable. It makes an interrupted
-best-effort delivery safe because PostgreSQL is still the source of truth.
-
-## Explicit Non-Goals
-
-The initial architecture does not include:
-
-- Multiple application instances or a dedicated WebSocket gateway.
-- Redis, queues, background workers, or webhooks.
-- Groups, delivery/read receipts, typing indicators, or presence.
-- Attachments, push notifications, search, or end-to-end encryption.
-- Event brokers or microservices.
-
-## Evolution Triggers
-
-Introduce a component only when its problem exists:
-
-| Trigger                                                                | Next addition                                                                   |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Multiple application instances                                         | Redis for cross-instance socket event distribution and connection coordination. |
-| Slow or retryable work such as push notifications and media processing | A queue and background worker.                                                  |
-| External server-to-server integrations                                 | Transactional outbox and signed webhooks.                                       |
-| Large binary attachments                                               | S3-compatible object storage.                                                   |
-| Proven search requirements                                             | A dedicated search index.                                                       |
-
-## Architectural Review Checklist
-
-Before accepting an increment, verify:
-
-- Does it solve a current requirement with the smallest practical design?
-- Does the modular monolith remain the right boundary?
-- Is durable state stored in PostgreSQL rather than process memory?
-- Is untrusted input validated at the HTTP or WebSocket boundary?
-- Does the change have a focused, meaningful test?
+For exact payloads and current UI limitations, use [API and client contracts](api-contracts.md).
+For local workflow and hosting operations, use [development](../development/setup.md)
+and [production deployment](../deployment/production.md).

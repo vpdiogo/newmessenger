@@ -14,11 +14,12 @@ history, but this plan is not suitable for continuous production availability.
 The browser communicates only with the Fastify API. Do not expose a Supabase
 project URL, database URL, or Supabase key to the frontend.
 
-Application rate limits and trusted client-IP extraction are not implemented.
-Before enabling them, resolve the provider/ingress questions and owner approval
-gates in the [API abuse-protection decision](../architecture/api-abuse-protection.md).
-Do not use Render's outbound IP ranges as an inbound proxy allowlist or enable
-unconditional proxy trust. This documentation does not change Render settings.
+Authenticated HTTP write limits and per-user WebSocket occupancy are implemented
+but default off; the 32 KiB body limit is always active. Client-IP extraction,
+IP/auth/email quotas remain deferred. See [abuse-control contracts](../architecture/api-abuse-protection.md)
+and the activation procedure below. Do not use outbound IP ranges as an inbound
+proxy allowlist or enable unconditional proxy trust. Repository defaults do not
+establish the live hosting settings; verify those in the provider dashboard.
 
 ```mermaid
 flowchart LR
@@ -34,7 +35,7 @@ flowchart LR
 
 ## Current Public MVP
 
-The deployed MVP uses the following public endpoints:
+Previously recorded public endpoints (not a live availability/configuration check):
 
 - Frontend: `https://newmessenger-sigma.vercel.app`
 - Backend: `https://newmessenger-api.onrender.com`
@@ -69,7 +70,9 @@ Use this order for the first deployment:
 
 ## Deploy the Backend
 
-1. In Render, create a Blueprint from this repository's `render.yaml`.
+1. In Render, create a Blueprint from this repository's `render.yaml`. It pins
+   Node.js 22.12.0 and pnpm 12.9.1; local Node.js 24 verification does not by itself
+   validate that separate deployment runtime.
 2. The Blueprint deploys the service in Render's Virginia region, matching the
    Supabase `us-east-1` project. A service region cannot be changed after
    creation.
@@ -119,13 +122,35 @@ The browser derives `wss://` from the HTTPS value of `VITE_API_BASE_URL`.
 After both deployments are live:
 
 1. Confirm `GET <Render URL>/health` returns `200`.
-2. In two separate browser sessions, register two users and create a direct
-   conversation.
+2. Use owner-designated test accounts in two browser sessions and create a
+   direct conversation. Registration creates persistent accounts; the local
+   development examples are not production test credentials.
 3. Send a message from one session and confirm it appears in the other without
    refresh.
 4. Confirm browser DevTools show HTTPS API requests and a `wss://` connection.
 5. Close one client session, send a message from the other, then reopen the
    client and confirm history recovery.
+
+## Activate or Disable Abuse Controls
+
+After local enabled/disabled QA and owner approval, set
+`HTTP_WRITE_RATE_LIMIT_ENABLED=true` and/or
+`WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` on the Render service. They are
+independent and default to `false` when absent from the environment. Apply the
+provider's save/restart/redeploy procedure so the new values reach the process.
+No Blueprint mutation is needed for the application defaults.
+
+Use [API abuse protection](../architecture/api-abuse-protection.md) for the single
+source of thresholds, retry/close contracts and deferred controls. Observe
+aggregate `429`/`503`, capacity rejection/occupancy logs and legitimate-use impact;
+new limiter records do not add sensitive identities, but existing Fastify logs
+still include connection metadata. Restarts reset local accounting; multiple
+instances multiply quotas and do not share socket occupancy. These controls are
+not complete DDoS protection.
+
+For undue blocking, set the affected switch to `false` and restart/redeploy. The
+body limit remains active. Activation and live provider settings must be verified
+by the owner; this documentation is not evidence they are enabled.
 
 ## Rollback
 
