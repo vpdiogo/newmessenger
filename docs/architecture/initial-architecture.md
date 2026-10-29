@@ -92,14 +92,41 @@ already-known IDs.
 Components under `components/conversations/` render controlled data and emit
 intents. Local presentation state, such as the expandable Start a conversation
 form, stays with its component. It does not create a competing selected-ID or
-message store. The right participant panel contains decorative avatar/email
-information, not a profile/settings model.
+message store. The right participant panel contains decorative avatar/email information and
+a settings intent; it does not own profile or app-preference state.
 
 Session and transport singletons assume one active dashboard per browser page;
 each tab is independent. Disposal invalidates pending callbacks and closes the
 owned socket. Request versions prevent late responses/effects from changing a
 new selection. They do not cancel server-side work or preserve per-conversation
 drafts: switching conversations currently clears draft/retry state (pending #58).
+
+## Language and Settings Ownership
+
+`i18n/` owns typed English/Brazilian Portuguese catalogs, reactive preference mode
+and resolved locale, safe browser persistence, interpolation and number formatting.
+The app initializes it before mounting; there is no backend language setting. Unreadable token storage is treated as no
+credential so the public UI can still mount; this does not introduce an in-memory
+authenticated token store.
+Automatic scans browser preferences in order (`pt-*` → `pt-BR`, `en-*` → `en`),
+falls back to `pt-BR`, and persists `auto` rather than the resolved language.
+Missing translation resources fall back to English; this is separate from locale
+resolution. `document.lang` follows the resolved language.
+
+`App.vue` owns one native settings dialog. A typed provided opening action joins
+header/participant controls to that dialog; there is no event bus or competing
+locale store. A desktop dashboard uses the right-panel footer, while the header
+covers other screens and compact layouts. Escape, focus containment and focus
+return are part of the dialog contract, including when a breakpoint hides its
+original opener.
+
+Data owners retain semantic feedback keys and expose computed translated text.
+Locale changes do not remake their instances or retry requests. Transcript
+formatters receive locale without changing date grouping keys or timestamps.
+Announcements translate queued events at publication; already-published text stays
+until the next real event so changing language does not replay it or clear ID
+deduplication. UI resources are the scoped Portuguese exception to the English
+source/documentation policy in [AGENTS.md](../../AGENTS.md).
 
 ## Security and Operational Boundaries
 

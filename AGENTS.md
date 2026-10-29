@@ -3,7 +3,8 @@
 ## Language
 
 - Write all source code, identifiers, documentation, commit messages, logs, and user-facing API messages in English.
-- Use Brazilian Portuguese only when communicating with the project owner outside the codebase.
+- Brazilian Portuguese is allowed in UI translation resources for the approved app localization. Keep source identifiers, comments, repository documentation and backend/API messages in English.
+- Use Brazilian Portuguese when communicating with the project owner outside the codebase.
 
 ## TypeScript and JavaScript
 
