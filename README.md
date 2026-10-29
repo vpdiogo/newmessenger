@@ -7,298 +7,73 @@
 [![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-2EA44F)](LICENSE)
 
-A minimal real-time messenger built to study the Node.js ecosystem and system design fundamentals.
+A portfolio messenger for learning the Node.js ecosystem and system design.
+A Vue client talks to one Fastify modular monolith; PostgreSQL stores messages,
+HTTP creates them, and WebSocket delivers best-effort events. Missed events
+recover through HTTP history.
 
-The project starts as a modular monolith: one Node.js application owns the HTTP API, WebSocket connections, and message persistence. It deliberately introduces infrastructure only when a concrete requirement exists.
+## What Works
 
-## Current Status
+- Email/password registration and login, with JWT session verification/recovery.
+- One-to-one conversations, URL-based selection and recent/earlier history.
+- Idempotent message sends, manual retry, Enter to send and Shift+Enter for a newline.
+- Realtime delivery, reconnect recovery, accessible announcements and independent
+  transcript/contact-list scrolling.
+- Optional per-user HTTP write quotas and five-connection WebSocket occupancy.
+  Both enforcement switches default off; the 32 KiB body limit is always active.
 
-The initial scaffold is complete. It currently provides:
-
-- A Fastify application written in strict TypeScript.
-- `GET /health` for service health checks.
-- An authenticated `GET /ws` WebSocket endpoint for real-time events.
-- PostgreSQL available through Docker Compose.
-- User registration, login, JWT access tokens, and a protected current-user endpoint.
-- Authenticated creation and listing of one-to-one conversations.
-- Persisted messages for direct conversations and chronological message history.
-- Best-effort real-time `message.created` delivery to connected members.
-- A public single-instance MVP deployed with Vercel, Render, and Supabase.
-- ESLint, Prettier, type checking, tests, and production builds.
-
-The application keeps WebSocket connections in memory, so real-time delivery is
-best-effort and scoped to one application instance. PostgreSQL remains the
-source of truth for message history.
-
-The repository also contains a Vue web client in `apps/web`. It supports
-registration, login, local JWT session restoration, direct conversations,
-message history, HTTP message sending, and native browser WebSocket updates.
-It reconnects after an interrupted socket and recovers missed messages through
-the HTTP history endpoint.
-
-## Stack
-
-- Node.js LTS and TypeScript
-- Fastify and `@fastify/websocket`
-- PostgreSQL 17
-- Vue 3, Vite, Tailwind CSS, and Vue Router
-- Zod for environment validation
-- ESLint and Prettier
-- Node.js test runner through `tsx`
-
-## Prerequisites
-
-- Node.js LTS
-- pnpm, enabled through Corepack
-- Docker and Docker Compose
+Delivery and limits are local to one backend instance. The MVP uses browser-local
+JWT storage and has no email-ownership verification, profile management, Redis,
+per-conversation retained drafts or language settings yet. See the
+[architecture and limitations](docs/architecture/initial-architecture.md).
 
 ## Run Locally
 
+Use Node.js LTS, Corepack and Docker Compose. The local workflow is verified with
+Node.js 24; `render.yaml` separately pins the deployed backend to Node.js 22.12.0.
+`package.json` pins pnpm 12.9.1.
+
+From an existing checkout, install dependencies and create local configuration.
+Skip either copy if that file already exists; preserve your local values.
+
 ```bash
-corepack enable
-pnpm install
+corepack pnpm install --frozen-lockfile
 cp .env.example .env
-docker compose up -d
-pnpm migration:up
-pnpm dev
-```
-
-The HTTP server listens on `http://localhost:3000` by default. PostgreSQL is exposed on `localhost:5435`.
-
-Check application health:
-
-```bash
-curl http://localhost:3000/health
-```
-
-## Run the Web Client
-
-Keep the backend running, then start the Vue application in another terminal:
-
-```bash
 cp apps/web/.env.example apps/web/.env
-pnpm web:dev
+docker compose up -d --wait
+corepack pnpm migration:up
+corepack pnpm dev
 ```
 
-Open `http://localhost:5173`. The authenticated dashboard uses `fetch` for
-API requests and the native browser WebSocket API for `message.created`
-events. `VITE_API_BASE_URL` defaults to `http://localhost:3000` when it is not
-set.
-
-## Authentication
-
-Set `JWT_SECRET` to a secret with at least 32 characters; `.env.example` contains a development-only value. Apply migrations before starting the server.
-
-Register with an email address and a password from 15 to 256 characters.
-Use a unique, long password or several unrelated words. Spaces, accents and
-symbols are accepted; character categories are not required. Whitespace-only
-passwords and passwords containing the complete email address (case-insensitively)
-are rejected. Passwords are never trimmed or Unicode-normalized. Length follows
-the existing backend Unicode code-point convention (an emoji counts as one),
-consistently on both sides.
-
-The new policy applies only to registration. Login retains its 12–256-character
-validation so existing accounts remain compatible. Registration failures preserve
-the existing `message` and status codes (`400` invalid input, `409` duplicate email)
-and may add `fieldErrors` with known email/password codes. The web client associates
-feedback with fields, clears or reevaluates it on relevant edits, and falls back
-to generic feedback for older or unexpected API responses.
-
-Example registration:
+In another terminal, from the repository root:
 
 ```bash
-curl -X POST http://localhost:3000/auth/register \
-  -H 'content-type: application/json' \
-  -d '{"email":"user@example.com","password":"correct-horse-battery-staple"}'
+corepack pnpm web:dev
 ```
 
-The registration and login endpoints return an `accessToken`. Send it as a Bearer token to retrieve the signed-in user:
+Open `http://localhost:5173`. The API uses port 3000 and local PostgreSQL uses 5435. `curl http://localhost:3000/health` returns `{ "status": "ok" }` when the
+HTTP server is running; it does not test database connectivity.
 
-```bash
-curl http://localhost:3000/auth/me \
-  -H 'authorization: Bearer <accessToken>'
-```
-
-With `WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` (default `false`), up to five
-simultaneous WebSockets are accepted per user on one backend instance. A refused
-tab shows connection-limit guidance and **Try again**; close another connected
-tab/session before retrying. HTTP sending and existing drafts remain available,
-but missed incoming events recover only when a socket opens again. The switch is
-independent of HTTP write quotas and requires a backend restart/redeploy.
-
-Open an authenticated WebSocket connection in a browser console:
-
-```js
-const socket = new WebSocket("ws://localhost:3000/ws", [
-  "bearer",
-  "<accessToken>",
-]);
-socket.addEventListener("message", console.log);
-```
-
-Login and registration disable their email/password fields and submit button
-while submitting, expose a busy state, and prevent concurrent duplicate requests.
-Failures re-enable the controls and preserve entered values for correction and
-manual retry. Default forms fit a 1150 × 682 viewport; errors, smaller windows
-and increased zoom may require scrolling so all guidance and controls remain
-accessible.
-
-The web client provides the same flow at `/register` and `/login`. For this MVP,
-the access token is stored in browser local storage and validated with
-`GET /auth/me` when the application loads. The client never renders protected
-content until that validation succeeds. A `401` clears the stored token; a
-temporary verification failure keeps it and presents a retry screen instead.
-Production session design should revisit this trade-off before handling
-sensitive user data.
-
-## Conversations
-
-Create a direct conversation with another user's email. Repeating the same request
-returns the existing conversation instead of creating a duplicate. The legacy
-`participantId` field remains supported for API compatibility.
-
-```bash
-curl -X POST http://localhost:3000/conversations \
-  -H 'content-type: application/json' \
-  -H 'authorization: Bearer <accessToken>' \
-  -d '{"participantEmail":"person@example.com"}'
-```
-
-List the signed-in user's direct conversations:
-
-```bash
-curl http://localhost:3000/conversations \
-  -H 'authorization: Bearer <accessToken>'
-```
-
-The authenticated dashboard stores the selected conversation in
-`/app?conversation=<conversation-id>`. Reload and browser Back/Forward restore
-selection after verifying the ID against the signed-in user's conversation
-list. Invalid or unavailable IDs fall back to the first conversation; an empty
-list clears the selection. Initial list failures retain the requested URL for
-retry. Other query parameters and the URL hash are preserved.
-
-Manual and automatic list refreshes retain the current valid selection, draft,
-and transcript. An incoming `message.created` event for an unknown conversation
-refreshes the list, as does WebSocket reconnection. Concurrent refresh requests
-are grouped, with a follow-up when events arrive during an in-flight query.
-A remotely created conversation without a message still requires manual
-**Refresh** while the socket stays connected; there is no conversation-creation
-event, unread indicator, or activity-based list reordering.
-
-The conversation form rejects the signed-in user's own email case-insensitively
-and distinguishes an unknown participant from connection/server failures.
-Editing the email clears obsolete creation feedback without hiding independent
-list-refresh errors.
-
-The selected conversation is marked with `aria-current`, and its participant
-heading names the conversation region. Full participant emails remain available
-to assistive technology even when visually truncated. Persistent polite status
-regions announce new incoming messages in the selected conversation and stable
-connection changes without moving focus. Initial history, earlier pages, own
-messages, and messages from other conversations are not announced. Newly
-recovered incoming messages are announced once by message ID; switching
-conversations cancels pending message announcements. These are screen-reader
-updates, not browser notifications or participant-presence indicators.
-
-## Messages
-
-Send a message as a member of a conversation:
-
-```bash
-curl -X POST http://localhost:3000/conversations/<conversation-id>/messages \
-  -H 'content-type: application/json' \
-  -H 'authorization: Bearer <accessToken>' \
-  -d '{"clientMessageId":"<uuid>","content":"Hello"}'
-```
-
-`clientMessageId` is generated by the client. Retrying the same ID for the
-same sender returns the original message without creating or delivering a
-duplicate. The Vue client retains the same ID when retrying unchanged content
-after an unconfirmed send. Editing failed content creates a new logical message
-with a new ID; it does not cancel a message already accepted by the server.
-Message content is trimmed and must contain 1 to 2,000 characters. The composer
-shows the limit and prevents submission of oversized content.
-Press Enter in the message textarea to send, or Shift+Enter to insert a newline.
-The Send button remains available. IME confirmation and held Enter key repeats
-do not send; the existing content, history-loading, and pending-send guards apply
-to both the keyboard shortcut and the button.
-
-Read a conversation's message history:
-
-```bash
-curl 'http://localhost:3000/conversations/<conversation-id>/messages?limit=50&cursor=<message-id>' \
-  -H 'authorization: Bearer <accessToken>'
-```
-
-History is returned as `{ "messages": [...], "nextCursor": "..." }`. Omit
-`cursor` for the oldest page and use `nextCursor` to move forward. This remains
-the default behavior and is used to recover messages after a reconnect.
-
-To open the latest page instead, use `direction=backward`:
-
-```bash
-curl 'http://localhost:3000/conversations/<conversation-id>/messages?limit=50&direction=backward' \
-  -H 'authorization: Bearer <accessToken>'
-```
-
-With `direction=backward`, `nextCursor` identifies the oldest message in the
-returned page when earlier messages remain. Request that cursor with the same
-direction to load the preceding page. Both directions return each page in
-chronological `(createdAt, id)` order; `nextCursor` is `null` at the end.
-Message timestamps are UTC ISO strings retaining PostgreSQL's six-digit
-fractional precision so frontend ordering matches history cursors.
-The web client opens recent history and offers **Load earlier messages**.
-Incoming messages follow the transcript end only when the reader is near it;
-loading earlier history preserves the reading position.
-
-Deploy backend support for `direction=backward` before releasing the updated
-web client. Existing clients using forward history remain compatible.
-
-## Available Commands
-
-```bash
-pnpm dev
-pnpm build
-pnpm start
-pnpm lint
-pnpm format
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm web:dev
-pnpm web:test
-pnpm web:typecheck
-pnpm web:build
-```
-
-## Project Structure
-
-```text
-src/
-  config/       Environment configuration
-  modules/      Feature modules
-  app.ts        Fastify application factory
-  server.ts     Process entry point
-test/           Focused application tests
-apps/web/        Vue client
-docs/
-  architecture/ Architecture decisions and boundaries
-  development/  Local setup instructions
-```
+For environment variables, troubleshooting and checks, follow the
+[development guide](docs/development/setup.md). Example credentials are for local
+development only.
 
 ## Documentation
 
-- [Initial architecture](docs/architecture/initial-architecture.md)
-- [Proposed API abuse protection](docs/architecture/api-abuse-protection.md)
-- [Local development setup](docs/development/setup.md)
-- [Production deployment](docs/deployment/production.md)
-- [Project guidelines](AGENTS.md)
+| Need                                             | Guide                                                             |
+| ------------------------------------------------ | ----------------------------------------------------------------- |
+| Set up an existing clone and run checks          | [Local development](docs/development/setup.md)                    |
+| Understand boundaries and design decisions       | [Architecture](docs/architecture/initial-architecture.md)         |
+| Call the API and understand recovery contracts   | [API and client contracts](docs/architecture/api-contracts.md)    |
+| Check behavior in a browser or over TCP          | [Verification guide](docs/development/verification.md)            |
+| Understand abuse limits and deferred IP controls | [API abuse protection](docs/architecture/api-abuse-protection.md) |
+| Deploy, configure or roll back                   | [Production deployment](docs/deployment/production.md)            |
+| Work as a contributor or agent                   | [Project guidelines](AGENTS.md)                                   |
 
-## Next Increment
-
-The next increment evaluates Redis Pub/Sub when a concrete need for delivery
-across multiple backend instances exists.
+The documented hosting topology uses Vercel for the web client, Render for the
+API and Supabase for PostgreSQL. See the deployment guide for the recorded public
+URLs and operational limitations; repository defaults do not establish current
+production settings. Add infrastructure only for a demonstrated requirement.
 
 ---
 
