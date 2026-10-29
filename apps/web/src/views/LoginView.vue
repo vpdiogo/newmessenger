@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import { useRouter } from "vue-router";
 
 import { loginSession } from "../auth/session";
@@ -19,12 +20,12 @@ const { email, password, errorMessage, isSubmitting, submit } = useLoginForm(
       class="rounded-3xl border border-white bg-white/75 p-6 shadow-xl shadow-sky-950/10 backdrop-blur sm:p-8"
     >
       <div class="mb-7">
-        <p class="text-sm font-bold text-sky-700">Welcome back</p>
+        <p class="text-sm font-bold text-sky-700">{{ t("login.welcome") }}</p>
         <h1 class="mt-2 text-3xl font-bold tracking-tight text-blue-950">
-          Log in
+          {{ t("nav.login") }}
         </h1>
         <p class="mt-2 text-slate-600">
-          Pick up where your conversations left off.
+          {{ t("login.description") }}
         </p>
       </div>
       <form
@@ -33,7 +34,7 @@ const { email, password, errorMessage, isSubmitting, submit } = useLoginForm(
         @submit.prevent="submit"
       >
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
-          Email
+          {{ t("common.email") }}
           <input
             v-model="email"
             :disabled="isSubmitting"
@@ -44,7 +45,7 @@ const { email, password, errorMessage, isSubmitting, submit } = useLoginForm(
           />
         </label>
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
-          Password
+          {{ t("common.password") }}
           <input
             v-model="password"
             :disabled="isSubmitting"
@@ -67,16 +68,16 @@ const { email, password, errorMessage, isSubmitting, submit } = useLoginForm(
           :disabled="isSubmitting"
           type="submit"
         >
-          {{ isSubmitting ? "Logging in..." : "Log in" }}
+          {{ isSubmitting ? t("login.pending") : t("nav.login") }}
         </button>
       </form>
       <p class="mt-6 text-sm text-slate-600">
-        Need an account?
+        {{ t("login.needAccount") }}
         <RouterLink
           class="font-semibold text-blue-700 hover:text-blue-800"
           to="/register"
         >
-          Register
+          {{ t("nav.register") }}
         </RouterLink>
       </p>
     </div>

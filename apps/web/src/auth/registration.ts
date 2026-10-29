@@ -1,30 +1,38 @@
+import { t, useFeedback, type PlainKey } from "../i18n";
 import { computed, ref, watch } from "vue";
 
 import { ApiError } from "../api/client";
 import type { Credentials } from "../api/auth";
 
 type Field = "email" | "password";
-type FieldErrors = Partial<Record<Field, string>>;
+type FieldErrors = Partial<Record<Field, PlainKey>>;
 
-const messages: Record<string, string> = {
-  invalid_email: "Enter a valid email address.",
-  email_registered: "This email is already registered.",
-  password_length: "Use between 15 and 256 characters.",
-  password_blank: "Use a password that is not only whitespace.",
-  password_contains_email:
-    "Your password must not contain your complete email address.",
+const messages: Record<string, PlainKey> = {
+  invalid_email: "register.invalidEmail",
+  email_registered: "register.duplicate",
+  password_length: "register.passwordLength",
+  password_blank: "register.passwordBlank",
+  password_contains_email: "register.passwordEmail",
 };
 
-export function passwordError(
+function passwordErrorKey(
   email: string,
   password: string,
-): string | undefined {
+): PlainKey | undefined {
   const length = Array.from(password).length;
   if (length < 15 || length > 256) return messages.password_length;
   if (!password.trim()) return messages.password_blank;
   if (email && password.toLowerCase().includes(email.toLowerCase()))
     return messages.password_contains_email;
   return undefined;
+}
+
+export function passwordError(
+  email: string,
+  password: string,
+): string | undefined {
+  const key = passwordErrorKey(email, password);
+  return key ? t(key) : undefined;
 }
 
 function recognizedErrors(value: unknown): FieldErrors {
@@ -49,22 +57,24 @@ export function useRegistrationForm(
   const email = ref("");
   const password = ref("");
   const isSubmitting = ref(false);
-  const errorMessage = ref<string | null>(null);
+  const { key: errorMessage, message: errorMessageText } = useFeedback();
   const serverErrors = ref<FieldErrors>({});
   const attempted = ref(false);
-  const emailError = computed(
-    () =>
+  const emailError = computed(() => {
+    const key =
       serverErrors.value.email ??
       (attempted.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)
         ? messages.invalid_email
-        : undefined),
-  );
-  const currentPasswordError = computed(
-    () =>
+        : undefined);
+    return key ? t(key) : undefined;
+  });
+  const currentPasswordError = computed(() => {
+    const key =
       (attempted.value
-        ? passwordError(email.value, password.value)
-        : undefined) ?? serverErrors.value.password,
-  );
+        ? passwordErrorKey(email.value, password.value)
+        : undefined) ?? serverErrors.value.password;
+    return key ? t(key) : undefined;
+  });
 
   watch(
     email,
@@ -107,7 +117,7 @@ export function useRegistrationForm(
         serverErrors.value = fields;
         if (Object.keys(fields).length) return false;
       }
-      errorMessage.value = "Unable to create your account. Please try again.";
+      errorMessage.value = "register.failed";
       return false;
     } finally {
       isSubmitting.value = false;
@@ -119,7 +129,7 @@ export function useRegistrationForm(
     password,
     emailError,
     passwordError: currentPasswordError,
-    errorMessage,
+    errorMessage: errorMessageText,
     isSubmitting,
     submit,
   };

@@ -1,7 +1,9 @@
 import { ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CONNECTION_LIMIT_MESSAGE, type ConnectionState } from "./connection";
+import type { ConnectionState } from "./connection";
+import { en } from "./i18n/en";
+const CONNECTION_LIMIT_MESSAGE = en["connection.limitHelp"];
 
 import type { Message } from "./api/conversations";
 import { useConversationAnnouncements } from "./useConversationAnnouncements";
@@ -182,4 +184,35 @@ it("announces manual capacity recovery once and cancels generic reconnect status
   state.dispose();
   connection.value = "limited";
   expect(state.connectionAnnouncement.value).toBe("");
+});
+
+it("translates pending/new announcements without replaying published content or resetting deduplication", async () => {
+  const { setLanguagePreference } = await import("./i18n");
+  const { state, connection } = setup();
+  try {
+    setLanguagePreference("en");
+    connection.value = "connected";
+    state.announceIncomingMessages([message("one")]);
+    const timers = vi.getTimerCount();
+    setLanguagePreference("pt-BR");
+    expect(vi.getTimerCount()).toBe(timers);
+    expect(state.connectionAnnouncement.value).toBe("Connection established.");
+    vi.advanceTimersByTime(250);
+    expect(state.messageAnnouncement.value).toBe(
+      "friend@example.test diz: Hello",
+    );
+    setLanguagePreference("en");
+    expect(state.messageAnnouncement.value).toBe(
+      "friend@example.test diz: Hello",
+    );
+    state.announceIncomingMessages([message("one")]);
+    expect(vi.getTimerCount()).toBe(0);
+    state.announceIncomingMessages([message("two")]);
+    vi.advanceTimersByTime(250);
+    expect(state.messageAnnouncement.value).toBe(
+      "friend@example.test says: Hello",
+    );
+  } finally {
+    setLanguagePreference("en");
+  }
 });

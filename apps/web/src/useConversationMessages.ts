@@ -1,3 +1,4 @@
+import { t, formatNumber, useFeedback } from "./i18n";
 import { computed, ref, watch, type Ref } from "vue";
 
 import { ApiError } from "./api/client";
@@ -40,8 +41,8 @@ export function useConversationMessages(
   const isLoadingMessages = ref(false);
   const isLoadingEarlier = ref(false);
   const isSendingMessage = ref(false);
-  const sendError = ref<string | null>(null);
-  const historyError = ref<string | null>(null);
+  const { key: sendError, message: sendErrorText } = useFeedback();
+  const { key: historyError, message: historyErrorText } = useFeedback();
   let selectionVersion = 0;
   let disposed = false;
   let draftVersion = 0;
@@ -54,11 +55,11 @@ export function useConversationMessages(
   const contentLength = computed(() => messageContent.value.trim().length);
   const contentError = computed(() =>
     contentLength.value > MESSAGE_CONTENT_LIMIT
-      ? `Messages must contain at most ${MESSAGE_CONTENT_LIMIT.toLocaleString("en-US")} characters. Shorten your message before sending.`
+      ? t("message.limit", { limit: formatNumber(MESSAGE_CONTENT_LIMIT) })
       : null,
   );
   const messageErrorMessage = computed(
-    () => contentError.value ?? sendError.value ?? historyError.value,
+    () => contentError.value ?? sendErrorText.value ?? historyErrorText.value,
   );
 
   const stopWatchingDraft = watch(
@@ -122,8 +123,7 @@ export function useConversationMessages(
     } catch {
       if (isCurrent(version)) {
         historyFailure = "latest";
-        historyError.value =
-          "Unable to load messages. Please retry loading history.";
+        historyError.value = "message.historyFailed";
       }
     } finally {
       if (isCurrent(version)) {
@@ -181,8 +181,7 @@ export function useConversationMessages(
     } catch {
       if (isCurrent(version)) {
         historyFailure = "earlier";
-        historyError.value =
-          "Unable to load earlier messages. Please try again.";
+        historyError.value = "message.earlierFailed";
       }
     } finally {
       if (isCurrent(version)) isLoadingEarlier.value = false;
@@ -232,18 +231,18 @@ export function useConversationMessages(
         pendingMessage.value = null;
         sendError.value =
           error.status === 400 || error.status === 413
-            ? "The message was rejected. Check its content and the 2,000-character limit before sending again."
+            ? "message.rejectedContent"
             : error.status === 401
-              ? "Your session has expired. Log in again to send this message."
+              ? "message.sessionExpired"
               : error.status === 403 || error.status === 404
-                ? "This conversation is unavailable. Refresh your conversations before sending again."
-                : "The message was rejected. Review the draft before sending again.";
+                ? "message.unavailable"
+                : "message.rejected";
       } else {
         pendingMessage.value = request;
         sendError.value =
           error instanceof ApiError && error.status === 429
-            ? "Too many requests. Wait before retrying this message."
-            : "Unable to confirm the message was sent. Retry unchanged to avoid duplicates; editing sends a new message.";
+            ? "message.rateLimited"
+            : "message.unconfirmed";
       }
       return "failed";
     } finally {
@@ -284,8 +283,7 @@ export function useConversationMessages(
     } catch {
       if (isCurrent(version)) {
         historyFailure = "recovery";
-        historyError.value =
-          "Unable to recover messages. Please retry loading history.";
+        historyError.value = "message.recoveryFailed";
       }
     } finally {
       if (isCurrent(version)) {
@@ -335,7 +333,7 @@ export function useConversationMessages(
     contentLength,
     contentError,
     messageErrorMessage,
-    historyError,
+    historyError: historyErrorText,
     submitMessage,
     loadEarlierMessages,
     recoverMessages,

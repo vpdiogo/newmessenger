@@ -1,3 +1,4 @@
+import { useFeedback } from "./i18n";
 import { readonly, ref, watch, type Ref } from "vue";
 import type { Router } from "vue-router";
 
@@ -14,7 +15,7 @@ export function useConversationRoute(
   state: ConversationRouteState,
 ) {
   const selectedConversationId = ref<string | null>(null);
-  const navigationError = ref<string | null>(null);
+  const { key: navigationError, message: navigationErrorText } = useFeedback();
   let navigationVersion = 0;
   let navigationTarget: string | null = null;
   let selectionIntent = 0;
@@ -74,8 +75,7 @@ export function useConversationRoute(
       completed = !failure;
     } catch {
       if (!disposed && version === navigationVersion)
-        navigationError.value =
-          "Unable to select the conversation. Please try again.";
+        navigationError.value = "conversation.selectFailed";
     } finally {
       if (!disposed && version === navigationVersion) {
         navigationTarget = null;
@@ -135,7 +135,7 @@ export function useConversationRoute(
 
   return {
     selectedConversationId: readonly(selectedConversationId),
-    navigationError: readonly(navigationError),
+    navigationError: navigationErrorText,
     openConversation,
     captureSelectionIntent,
     selectCreatedConversation,

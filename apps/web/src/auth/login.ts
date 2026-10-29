@@ -1,3 +1,4 @@
+import { useFeedback } from "../i18n";
 import { ref } from "vue";
 
 import type { Credentials } from "../api/auth";
@@ -8,7 +9,7 @@ export function useLoginForm(
 ) {
   const email = ref("");
   const password = ref("");
-  const errorMessage = ref<string | null>(null);
+  const { key: errorMessage, message: errorMessageText } = useFeedback();
   const isSubmitting = ref(false);
 
   async function submit(): Promise<void> {
@@ -21,12 +22,18 @@ export function useLoginForm(
     } catch (error) {
       errorMessage.value =
         error instanceof ApiError && error.status === 401
-          ? "Invalid email or password."
-          : "Unable to log in. Please try again.";
+          ? "login.invalid"
+          : "login.failed";
     } finally {
       isSubmitting.value = false;
     }
   }
 
-  return { email, password, errorMessage, isSubmitting, submit };
+  return {
+    email,
+    password,
+    errorMessage: errorMessageText,
+    isSubmitting,
+    submit,
+  };
 }

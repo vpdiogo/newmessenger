@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale } from "../../i18n";
 import type { ComponentPublicInstance } from "vue";
 
 import { formatMessageTime, type TranscriptGroup } from "../../transcript";
@@ -36,21 +37,23 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
     >
       {{
         isLoadingEarlier
-          ? "Loading earlier messages..."
-          : "Load earlier messages"
+          ? t("message.loadingEarlier")
+          : t("message.loadEarlier")
       }}
     </button>
     <p v-if="isLoadingMessages" class="text-sm text-slate-500">
-      Loading messages...
+      {{ t("message.loading") }}
     </p>
     <div
       v-else-if="groups.length === 0"
       class="grid min-h-52 place-items-center rounded-2xl border border-dashed border-sky-200 bg-sky-50/55 p-6 text-center"
     >
       <div class="max-w-sm">
-        <p class="text-lg font-bold text-blue-950">No messages yet</p>
+        <p class="text-lg font-bold text-blue-950">
+          {{ t("message.emptyTitle") }}
+        </p>
         <p class="mt-1 text-sm leading-6 text-slate-500">
-          Send the first message to begin this conversation.
+          {{ t("message.emptyDescription") }}
         </p>
       </div>
     </div>
@@ -76,8 +79,8 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
         >
           {{
             group.senderId === currentUserId
-              ? "You say:"
-              : `${participantEmail} says:`
+              ? t("message.youSay")
+              : t("message.participantSays", { participant: participantEmail })
           }}
         </p>
         <div
@@ -93,7 +96,7 @@ function setViewport(element: Element | ComponentPublicInstance | null): void {
           </p>
           <time
             class="pt-1 text-xs font-medium whitespace-nowrap text-slate-400"
-            >{{ formatMessageTime(message.createdAt) }}</time
+            >{{ formatMessageTime(message.createdAt, locale) }}</time
           >
         </div>
       </li>
