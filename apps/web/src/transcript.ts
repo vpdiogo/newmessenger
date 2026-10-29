@@ -1,3 +1,4 @@
+import type { Locale } from "./i18n";
 import type { Message } from "./api/conversations";
 
 export type TranscriptGroup = {
@@ -15,14 +16,17 @@ function dateKey(createdAt: string): string {
   }).format(new Date(createdAt));
 }
 
-function dateLabel(createdAt: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "full" }).format(
+function dateLabel(createdAt: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(
     new Date(createdAt),
   );
 }
 
-export function formatMessageTime(createdAt: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+export function formatMessageTime(
+  createdAt: string,
+  locale: Locale = "en",
+): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(createdAt));
@@ -30,6 +34,7 @@ export function formatMessageTime(createdAt: string): string {
 
 export function groupTranscriptMessages(
   messages: Message[],
+  locale: Locale = "en",
 ): TranscriptGroup[] {
   const groups: TranscriptGroup[] = [];
 
@@ -48,7 +53,7 @@ export function groupTranscriptMessages(
 
     groups.push({
       dateKey: currentDateKey,
-      dateLabel: dateLabel(message.createdAt),
+      dateLabel: dateLabel(message.createdAt, locale),
       messages: [message],
       senderId: message.senderId,
     });
