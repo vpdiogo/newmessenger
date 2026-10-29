@@ -4,7 +4,7 @@ const getAccessToken = vi.hoisted(() => vi.fn());
 
 vi.mock("./auth/token", () => ({ getAccessToken }));
 
-type Listener = (event?: { data: string }) => void;
+type Listener = (event?: { data?: string; code?: number }) => void;
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -29,7 +29,7 @@ class MockWebSocket {
     this.emit("close");
   }
 
-  emit(event: string, payload?: { data: string }): void {
+  emit(event: string, payload?: { data?: string; code?: number }): void {
     for (const listener of this.listeners.get(event) ?? []) listener(payload);
   }
 }
@@ -66,5 +66,52 @@ describe("realtime connection", () => {
     ]);
 
     disconnectRealtime();
+  });
+
+  it("stops after4008 and permits one manual attempt while preserving callbacks", async () => {
+    const {
+      connectRealtime,
+      retryRealtime,
+      disconnectRealtime,
+      connectionState,
+    } = await import("./realtime");
+    const onConnected = vi.fn();
+    const onMessage = vi.fn();
+    try {
+      connectRealtime(onMessage, onConnected);
+      const first = MockWebSocket.instances[0]!;
+      first.emit("open");
+      first.emit("close", { code: 4008 });
+      expect(connectionState.value).toBe("limited");
+      vi.advanceTimersByTime(5000);
+      expect(MockWebSocket.instances).toHaveLength(1);
+      expect(vi.getTimerCount()).toBe(0);
+      retryRealtime();
+      retryRealtime();
+      expect(connectionState.value).toBe("retrying-limit");
+      expect(MockWebSocket.instances).toHaveLength(2);
+      const second = MockWebSocket.instances[1]!;
+      second.emit("close", { code: 1006 });
+      expect(connectionState.value).toBe("limited");
+      expect(vi.getTimerCount()).toBe(0);
+      retryRealtime();
+      const third = MockWebSocket.instances[2]!;
+      third.emit("open");
+      expect(connectionState.value).toBe("connected");
+      expect(onConnected).toHaveBeenCalledTimes(2);
+      third.emit("close", { code: 4008 });
+      expect(connectionState.value).toBe("limited");
+      expect(vi.getTimerCount()).toBe(0);
+      retryRealtime();
+      MockWebSocket.instances[3]!.emit("open");
+      MockWebSocket.instances[3]!.emit("close", { code: 1006 });
+      vi.advanceTimersByTime(1000);
+      expect(MockWebSocket.instances).toHaveLength(5);
+    } finally {
+      disconnectRealtime();
+    }
+    expect(connectionState.value).toBe("disconnected");
+    retryRealtime();
+    expect(MockWebSocket.instances).toHaveLength(5);
   });
 });

@@ -13,13 +13,38 @@ export const realtimeRoutes: FastifyPluginAsync = async (app) => {
       socket.close(1008, "Unauthorized");
       return;
     }
-
+    let userId: string;
     try {
       const user = app.jwt.verify<{ sub: string }>(token);
-      app.realtime.addConnection(user.sub.toLowerCase(), socket);
-      socket.send(JSON.stringify({ type: "connection.accepted" }));
+      userId = user.sub.toLowerCase();
     } catch {
       socket.close(1008, "Unauthorized");
+      return;
+    }
+
+    let release: (() => void) | null = null;
+    try {
+      release = app.realtime.addConnection(userId, socket);
+      if (!release) {
+        socket.close(4008, "Connection limit reached");
+        return;
+      }
+      socket.send(JSON.stringify({ type: "connection.accepted" }), (error) => {
+        if (!error) return;
+        release?.();
+        socket.close(1011, "Connection unavailable");
+        request.log.error(
+          { category: "acceptance-send" },
+          "Unable to accept WebSocket connection",
+        );
+      });
+    } catch {
+      release?.();
+      request.log.error(
+        { category: "registration" },
+        "Unable to register WebSocket connection",
+      );
+      socket.close(1011, "Connection unavailable");
     }
   });
 };

@@ -1,6 +1,8 @@
 import { ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CONNECTION_LIMIT_MESSAGE, type ConnectionState } from "./connection";
+
 import type { Message } from "./api/conversations";
 import { useConversationAnnouncements } from "./useConversationAnnouncements";
 
@@ -20,9 +22,7 @@ const states: ReturnType<typeof useConversationAnnouncements>[] = [];
 function setup() {
   const conversationId = ref<string | null>("conversation-a");
   const userId = ref("owner");
-  const connection = ref<"connecting" | "connected" | "disconnected">(
-    "connecting",
-  );
+  const connection = ref<ConnectionState>("connecting");
   const state = useConversationAnnouncements(
     conversationId,
     () => userId.value,
@@ -161,4 +161,25 @@ describe("connection announcements", () => {
     vi.advanceTimersByTime(1000);
     expect(state.connectionAnnouncement.value).toBe("");
   });
+});
+
+it("announces manual capacity recovery once and cancels generic reconnect status", () => {
+  const { state, connection } = setup();
+  connection.value = "connected";
+  connection.value = "disconnected";
+  vi.advanceTimersByTime(300);
+  connection.value = "limited";
+  expect(state.connectionAnnouncement.value).toBe(CONNECTION_LIMIT_MESSAGE);
+  vi.advanceTimersByTime(2000);
+  expect(state.connectionAnnouncement.value).toBe(CONNECTION_LIMIT_MESSAGE);
+  expect(vi.getTimerCount()).toBe(0);
+  connection.value = "retrying-limit";
+  connection.value = "limited";
+  expect(state.connectionAnnouncement.value).toBe(CONNECTION_LIMIT_MESSAGE);
+  expect(vi.getTimerCount()).toBe(0);
+  connection.value = "connected";
+  expect(state.connectionAnnouncement.value).toBe("Connection established.");
+  state.dispose();
+  connection.value = "limited";
+  expect(state.connectionAnnouncement.value).toBe("");
 });

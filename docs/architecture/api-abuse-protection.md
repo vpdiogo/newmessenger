@@ -58,13 +58,52 @@ The existing release rollback remains available. The frontend already preserves
 failed message text and client ID after `429`; it offers manual retry, without a
 Retry-After countdown or automatic outgoing resend.
 
+## WebSocket occupancy stage — #44
+
+`WEBSOCKET_CONNECTION_LIMIT_ENABLED` defaults to `false`, independently of HTTP
+quotas. When enabled, one backend instance accepts up to five simultaneous
+WebSockets per JWT-authenticated user across tabs/sessions. Admission uses the
+existing socket registry synchronously, before `connection.accepted`. Invalid
+credentials retain `1008 Unauthorized`; the sixth connection closes with
+`4008 Connection limit reached` and receives no acceptance event. Internal
+registration/acceptance-send failures release any slot and close with `1011`.
+
+Close, error, registration/send failure and shutdown share idempotent cleanup.
+An error terminates the socket; a late callback cannot remove a replacement
+registry entry. Shutdown terminates retained connections and clears local state.
+Aggregate occupancy and capacity rejection logs use existing facilities, without
+user IDs, tokens, message content or per-user metric labels. New records include
+only category, total occupancy/user counts and, for rejection, route/key type/code.
+
+On `4008`, the browser stops automatic retries and shows guidance with **Try
+again**. Each activation makes one guarded attempt. The action is disabled while
+pending; failure before opening remains manual. Ordinary disconnections after
+opening keep existing automatic recovery. Session, selection, draft, pending send
+and HTTP functionality remain available. The connection announcement replaces
+any pending generic reconnect notice; visible guidance does not duplicate the
+live announcement. Disposal clears the owner state and timers.
+
+The frontend intentionally still marks connected on `open` and runs its existing
+HTTP discovery/history recovery. A refused socket may briefly display connected
+before `4008`; the backend has not admitted that socket. This accepted limitation
+does not introduce an acceptance-confirmation protocol. Successful manual retry
+reuses existing message deduplication and scroll behavior.
+
+The owner enables/disables the flag through hosting environment settings and
+restarts/redeploys, after enabled/disabled local QA. Observe aggregate occupancy,
+capacity rejections and legitimate-use impact. Disable and restart/redeploy or
+roll back the release for undue blocking. Multiple instances do not share slots.
+This is not a handshake-attempt/IP limit: upgrade work and unauthenticated
+connection volume remain outside this stage. No production settings are changed
+by implementation.
+
 ## Deferred controls and Render research
 
 [#43](https://github.com/vpdiogo/newmessenger/issues/43) records the approved HTTP
 scope and tracks deferred IP interpretation, platform adapter, IP quotas and
 email budgets. [#44](https://github.com/vpdiogo/newmessenger/issues/44) plans the
-separate per-user WebSocket occupancy control and manual recovery. Neither
-WebSocket limits nor auth-volume limits are implemented by this HTTP stage.
+separate per-user WebSocket occupancy control and manual recovery described
+above. Auth-volume limits remain unimplemented.
 The earlier broader [#41](https://github.com/vpdiogo/newmessenger/issues/41)
 proposal is superseded for this stage; its proxy approval gate applies only to
 future IP enforcement, not authenticated-user quotas.

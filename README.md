@@ -119,6 +119,13 @@ curl http://localhost:3000/auth/me \
   -H 'authorization: Bearer <accessToken>'
 ```
 
+With `WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` (default `false`), up to five
+simultaneous WebSockets are accepted per user on one backend instance. A refused
+tab shows connection-limit guidance and **Try again**; close another connected
+tab/session before retrying. HTTP sending and existing drafts remain available,
+but missed incoming events recover only when a socket opens again. The switch is
+independent of HTTP write quotas and requires a backend restart/redeploy.
+
 Open an authenticated WebSocket connection in a browser console:
 
 ```js

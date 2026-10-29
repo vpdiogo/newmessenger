@@ -292,3 +292,16 @@ Use temporary local users, never production load tests. Deterministic tests inje
 a monotonic clock to verify expiry without waiting an hour. Production activation,
 monitoring, rollback and deferred IP controls are described in
 [API Abuse Protection](../architecture/api-abuse-protection.md).
+
+## Verify WebSocket Connection Capacity
+
+Enable `WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` locally and restart the backend.
+Open six dashboard tabs with the same local account: five should stay connected;
+the sixth must show manual recovery guidance without repeating attempts. Close
+one accepted tab and select **Try again** in the refused tab; verify conversation
+discovery and missed messages recover without duplicates. Check draft/selection
+and HTTP sending while limited, keyboard access, a compact window, and leaving
+and returning to the dashboard. Turn the switch off and restart to confirm more
+than five valid connections work. Use temporary local accounts, not production
+load tests. Activation and limitations are described in
+[API Abuse Protection](../architecture/api-abuse-protection.md).

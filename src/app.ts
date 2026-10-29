@@ -18,6 +18,7 @@ type BuildAppOptions = {
   databaseUrl: string;
   jwtSecret: string;
   httpWriteRateLimitEnabled?: boolean;
+  websocketConnectionLimitEnabled?: boolean;
   rateLimitClock?: () => number;
 };
 
@@ -32,7 +33,9 @@ export async function buildApp(options: BuildAppOptions) {
     enabled: options.httpWriteRateLimitEnabled ?? false,
     ...(options.rateLimitClock ? { clock: options.rateLimitClock } : {}),
   });
-  await app.register(realtimePlugin);
+  await app.register(realtimePlugin, {
+    connectionLimitEnabled: options.websocketConnectionLimitEnabled ?? false,
+  });
   await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(conversationRoutes);
