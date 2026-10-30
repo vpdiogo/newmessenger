@@ -62,6 +62,9 @@ const {
   earlierCursor,
   messageContent,
   pendingMessage,
+  recoveryAttempt,
+  dismissRecovery,
+  retryOriginalMessage,
   isLoadingMessages,
   isLoadingEarlier,
   isSendingMessage,
@@ -101,8 +104,13 @@ async function submitConversation(): Promise<void> {
   }
 }
 
-async function submitMessage(attemptId: number | null): Promise<void> {
-  const result = await submitMessageRequest();
+async function submitMessage(
+  attemptId: number | null,
+  original = false,
+): Promise<void> {
+  const result = await (original
+    ? retryOriginalMessage()
+    : submitMessageRequest());
   await composer.value?.completeSubmission(result, attemptId);
 }
 
@@ -231,7 +239,10 @@ onBeforeUnmount(() => {
           :content-limit="MESSAGE_CONTENT_LIMIT"
           :content-error="contentError"
           :is-retrying="Boolean(pendingMessage)"
+          :recovery-attempt="recoveryAttempt"
           @send="submitMessage"
+          @retry-original="submitMessage($event, true)"
+          @dismiss-recovery="dismissRecovery"
         />
       </template>
       <div

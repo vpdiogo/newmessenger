@@ -144,6 +144,9 @@ describe("keyboard intent through the existing submission flow", () => {
     ]);
     expect(state.messageErrorMessage.value).toContain("Retry unchanged");
     state.messageContent.value = "Edited";
+    await pressEnter(state);
+    expect(api.sendMessage).toHaveBeenCalledTimes(2);
+    state.dismissRecovery();
     api.sendMessage.mockResolvedValueOnce(
       message("sent", { content: "Edited" }),
     );
@@ -195,7 +198,7 @@ describe("message submission recovery", () => {
     expect(state.pendingMessage.value).toBeNull();
   });
 
-  it("leaves retry mode when failed content changes and submits a new ID", async () => {
+  it("requires explicit dismissal before edited failed content submits a new ID", async () => {
     const state = createState();
     await state.selectConversation("conversation-a");
     state.messageContent.value = "original";
@@ -203,8 +206,13 @@ describe("message submission recovery", () => {
     await state.submitMessage();
     const originalId = state.pendingMessage.value!.clientMessageId;
     state.messageContent.value = "edited";
-    expect(state.pendingMessage.value).toBeNull();
+    expect(state.recoveryAttempt.value?.content).toBe("original");
     expect(state.messageErrorMessage.value).toBeNull();
+    expect(await state.submitMessage()).toBe("ignored");
+    expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    state.dismissRecovery();
+    expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    expect(state.messageContent.value).toBe("edited");
     await state.submitMessage();
     expect(api.sendMessage.mock.calls[1]?.[1]).not.toBe(originalId);
     expect(api.sendMessage.mock.calls[1]?.[2]).toBe("edited");
@@ -257,7 +265,7 @@ describe("message submission recovery", () => {
     expect(state.isSendingMessage.value).toBe(false);
   });
 
-  it("ignores stale send failures even when returning to the same conversation", async () => {
+  it("retains a late send failure after A-B-A without overwriting newer text", async () => {
     const state = createState();
     await state.selectConversation("conversation-a");
     const response = deferred<Message>();
@@ -269,10 +277,224 @@ describe("message submission recovery", () => {
     state.messageContent.value = "current draft";
     response.reject(new TypeError("Old failure"));
     expect(await sending).toBe("stale");
-    expect(state.pendingMessage.value).toBeNull();
+    expect(state.pendingMessage.value?.content).toBe("old draft");
+    expect(state.recoveryAttempt.value?.status).toBe("failed");
     expect(state.messageErrorMessage.value).toBeNull();
     expect(state.messageContent.value).toBe("current draft");
   });
+});
+
+describe("per-conversation draft and send ownership", () => {
+  it("restores exact independent drafts and does not send on selection, refresh or recovery", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    state.messageContent.value = "  A draft\n";
+    await state.selectConversation("conversation-b");
+    expect(state.messageContent.value).toBe("");
+    state.messageContent.value = "B draft";
+    await state.selectConversation("conversation-a");
+    expect(state.messageContent.value).toBe("  A draft\n");
+    await state.recoverMessages();
+    expect(state.messageContent.value).toBe("  A draft\n");
+    await state.selectConversation(null);
+    await state.selectConversation("conversation-b");
+    expect(state.messageContent.value).toBe("B draft");
+    expect(api.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("preserves independent pending guards and inactive failures", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    const a = deferred<Message>();
+    const b = deferred<Message>();
+    api.sendMessage
+      .mockReturnValueOnce(a.promise)
+      .mockReturnValueOnce(b.promise);
+    state.messageContent.value = "A";
+    const sendingA = state.submitMessage();
+    await state.selectConversation("conversation-b");
+    expect(state.isSendingMessage.value).toBe(false);
+    state.messageContent.value = "B";
+    const sendingB = state.submitMessage();
+    await state.selectConversation("conversation-a");
+    expect(state.isSendingMessage.value).toBe(true);
+    expect(await state.submitMessage()).toBe("ignored");
+    state.dismissRecovery();
+    expect(state.isSendingMessage.value).toBe(true);
+    await state.selectConversation("conversation-b");
+    a.reject(new TypeError("A response lost"));
+    await sendingA;
+    expect(state.isSendingMessage.value).toBe(true);
+    expect(state.messageErrorMessage.value).toBeNull();
+    b.resolve(message("b", { conversationId: "conversation-b", content: "B" }));
+    await sendingB;
+    expect(state.messageContent.value).toBe("");
+    await state.selectConversation("conversation-a");
+    expect(state.messageContent.value).toBe("A");
+    expect(state.messageErrorMessage.value).toContain("Unable to confirm");
+    expect(state.isSendingMessage.value).toBe(false);
+    expect(api.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("merges an inactive confirmation even when a new latest-history response predates it", async () => {
+    const { state, incoming } = createObservedState();
+    await state.selectConversation("conversation-a");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    state.messageContent.value = "original";
+    const sending = state.submitMessage();
+    state.messageContent.value = "new draft";
+    await state.selectConversation("conversation-b");
+    const history = deferred<MessageHistory>();
+    api.getMessageHistory.mockReturnValueOnce(history.promise);
+    const returning = state.selectConversation("conversation-a");
+    response.resolve(message("confirmed", { content: "original" }));
+    expect(await sending).toBe("stale");
+    history.resolve({ messages: [], nextCursor: null });
+    await returning;
+    expect(state.messages.value.map((m) => m.id)).toEqual(["confirmed"]);
+    expect(state.messageContent.value).toBe("new draft");
+    expect(state.pendingMessage.value).toBeNull();
+    expect(incoming).not.toHaveBeenCalled();
+  });
+
+  it("shows an inactive success once on return and clears only its submitted draft", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    state.messageContent.value = "accepted";
+    const sending = state.submitMessage();
+    await state.selectConversation("conversation-b");
+    state.messageContent.value = "B draft";
+    const accepted = message("accepted");
+    response.resolve(accepted);
+    await sending;
+    expect(state.messages.value).toEqual([]);
+    expect(state.messageContent.value).toBe("B draft");
+    api.getMessageHistory.mockResolvedValueOnce({
+      messages: [accepted],
+      nextCursor: null,
+    });
+    await state.selectConversation("conversation-a");
+    expect(state.messageContent.value).toBe("");
+    expect(state.messages.value).toEqual([accepted]);
+    expect(state.isSendingMessage.value).toBe(false);
+  });
+
+  it("retains a confirmation when latest history fails and retries that history without sending", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    state.messageContent.value = "accepted";
+    const sending = state.submitMessage();
+    await state.selectConversation("conversation-b");
+    response.resolve(message("accepted"));
+    await sending;
+    api.getMessageHistory.mockRejectedValueOnce(
+      new TypeError("History unavailable"),
+    );
+    await state.selectConversation("conversation-a");
+    expect(state.messages.value.map((m) => m.id)).toEqual(["accepted"]);
+    expect(state.historyError.value).not.toBeNull();
+    await state.retryHistory();
+    expect(state.messages.value.map((m) => m.id)).toEqual(["accepted"]);
+    expect(state.historyError.value).toBeNull();
+    expect(api.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the old content with its original ID while retaining an invalid newer draft", async () => {
+    const state = createState();
+    await state.selectConversation("conversation-a");
+    state.messageContent.value = "original";
+    api.sendMessage.mockRejectedValueOnce(new TypeError("Lost response"));
+    await state.submitMessage();
+    const originalId = state.pendingMessage.value!.clientMessageId;
+    state.messageContent.value = "x".repeat(2001);
+    expect(await state.submitMessage()).toBe("ignored");
+    const response = deferred<Message>();
+    api.sendMessage.mockReturnValueOnce(response.promise);
+    const retrying = state.retryOriginalMessage();
+    expect(await state.retryOriginalMessage()).toBe("ignored");
+    expect(await state.submitMessage()).toBe("ignored");
+    state.dismissRecovery();
+    expect(state.isSendingMessage.value).toBe(true);
+    response.resolve(message("original", { clientMessageId: originalId }));
+    expect(await retrying).toBe("sent");
+    expect(state.messageContent.value).toBe("x".repeat(2001));
+    expect(state.recoveryAttempt.value).toBeNull();
+    expect(api.sendMessage.mock.calls.map((call) => call.slice(1))).toEqual([
+      [originalId, "original"],
+      [originalId, "original"],
+    ]);
+  });
+
+  it.each([400, 401, 403, 404, 413])(
+    "retains inactive permanent rejection %s without offering a transient retry",
+    async (status) => {
+      const state = createState();
+      await state.selectConversation("conversation-a");
+      const response = deferred<Message>();
+      api.sendMessage.mockReturnValueOnce(response.promise);
+      state.messageContent.value = "rejected original";
+      const sending = state.submitMessage();
+      state.messageContent.value = "newer draft";
+      await state.selectConversation("conversation-b");
+      response.reject(new ApiError(status, "Rejected"));
+      await sending;
+      await state.selectConversation("conversation-a");
+      expect(state.recoveryAttempt.value?.status).toBe("rejected");
+      expect(state.recoveryAttempt.value?.content).toBe("rejected original");
+      expect(state.pendingMessage.value).toBeNull();
+      expect(await state.retryOriginalMessage()).toBe("ignored");
+      state.dismissRecovery();
+      expect(state.messageContent.value).toBe("newer draft");
+      expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([408, 429, 503])(
+    "retains retryable error %s and its original ID after switching",
+    async (status) => {
+      const state = createState();
+      await state.selectConversation("conversation-a");
+      state.messageContent.value = "original";
+      api.sendMessage.mockRejectedValueOnce(new ApiError(status, "Temporary"));
+      await state.submitMessage();
+      const id = state.pendingMessage.value!.clientMessageId;
+      await state.selectConversation("conversation-b");
+      await state.selectConversation("conversation-a");
+      await state.submitMessage();
+      expect(api.sendMessage.mock.calls.map((call) => call[1])).toEqual([
+        id,
+        id,
+      ]);
+    },
+  );
+
+  it.each(["success", "failure"])(
+    "disposal clears drafts and makes a late %s inert for a new dashboard/account",
+    async (outcome) => {
+      const state = createState();
+      await state.selectConversation("conversation-a");
+      const response = deferred<Message>();
+      api.sendMessage.mockReturnValueOnce(response.promise);
+      state.messageContent.value = "private draft";
+      const sending = state.submitMessage();
+      state.dispose();
+      const fresh = createState();
+      await fresh.selectConversation("conversation-a");
+      if (outcome === "success") response.resolve(message("private result"));
+      else response.reject(new TypeError("Old failure"));
+      expect(await sending).toBe("stale");
+      expect(state.messageContent.value).toBe("");
+      expect(state.pendingMessage.value).toBeNull();
+      expect(fresh.messageContent.value).toBe("");
+      expect(fresh.messages.value).toEqual([]);
+      expect(await state.submitMessage()).toBe("ignored");
+    },
+  );
 });
 
 describe("latest history and reconnect recovery", () => {
