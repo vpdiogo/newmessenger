@@ -97,6 +97,11 @@ export const ptBR = {
   "message.sending": "Enviando...",
   "message.retry": "Reenviar mensagem",
   "message.send": "Enviar",
+  "message.previous": "Mensagem anterior",
+  "message.retryOriginal": "Tentar novamente a original",
+  "message.continueDraft": "Continuar com o novo rascunho",
+  "message.dismissHelp":
+    "Uma mensagem com envio não confirmado pode ter sido recebida. Continuar com o novo rascunho não cancela a mensagem original.",
   "message.counter": "{count} / {limit} caracteres",
   "message.limit":
     "As mensagens devem conter no máximo {limit} caracteres. Reduza o texto antes de enviar.",
@@ -115,7 +120,7 @@ export const ptBR = {
   "message.rateLimited":
     "Muitas solicitações. Aguarde antes de reenviar esta mensagem.",
   "message.unconfirmed":
-    "Não foi possível confirmar o envio. Reenvie sem alterar o texto para evitar duplicatas; editar envia uma nova mensagem.",
+    "Não foi possível confirmar o envio. Reenvie sem alterar o texto para evitar duplicatas.",
   "message.recoveryFailed":
     "Não foi possível recuperar as mensagens. Tente carregar o histórico novamente.",
   "message.retryHistory": "Recarregar histórico",

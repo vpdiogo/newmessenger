@@ -2,8 +2,12 @@
 import { t, formatNumber } from "../../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import type { MessageSubmissionResult } from "../../useConversationMessages";
+import type {
+  MessageSubmissionResult,
+  MessageRecoveryState,
+} from "../../useConversationMessages";
 import { submitMessageOnEnter } from "./messageKeyboard";
+import MessageRecovery from "./MessageRecovery.vue";
 
 const props = defineProps<{
   conversationId: string;
@@ -13,10 +17,15 @@ const props = defineProps<{
   contentLimit: number;
   contentError: string | null;
   isRetrying: boolean;
+  recoveryAttempt: MessageRecoveryState | null;
 }>();
 
 const messageContent = defineModel<string>({ required: true });
-const emit = defineEmits<{ send: [attemptId: number | null] }>();
+const emit = defineEmits<{
+  send: [attemptId: number | null];
+  retryOriginal: [attemptId: number | null];
+  dismissRecovery: [];
+}>();
 
 const form = ref<HTMLFormElement | null>(null);
 const textarea = ref<HTMLTextAreaElement | null>(null);
@@ -34,15 +43,20 @@ function isInsideComposer(target: EventTarget | null): boolean {
   return Boolean(target instanceof Node && form.value?.contains(target));
 }
 
-function requestSend(): void {
+function requestSend(original = false): void {
   if (props.isSendingMessage || props.isLoadingMessages) {
-    emit("send", null);
     return;
   }
   focusAttempt = isInsideComposer(document.activeElement)
     ? { id: ++nextFocusAttemptId, conversationId: props.conversationId }
     : null;
-  emit("send", focusAttempt?.id ?? null);
+  if (original) emit("retryOriginal", focusAttempt?.id ?? null);
+  else emit("send", focusAttempt?.id ?? null);
+}
+
+function continueDraft(): void {
+  emit("dismissRecovery");
+  textarea.value?.focus({ preventScroll: true });
 }
 
 async function completeSubmission(
@@ -143,15 +157,25 @@ defineExpose({ completeSubmission });
   <form
     ref="form"
     class="shrink-0 rounded-xl border border-white/60 bg-sky-100/20 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
-    @submit.prevent="requestSend"
+    @submit.prevent="requestSend()"
   >
+    <MessageRecovery
+      v-if="recoveryAttempt"
+      class="mb-3"
+      :content="recoveryAttempt.content"
+      :status="recoveryAttempt.status"
+      :error="recoveryAttempt.error"
+      :is-loading-messages="isLoadingMessages"
+      @retry="requestSend(true)"
+      @dismiss="continueDraft"
+    />
     <label class="sr-only" for="message">{{ t("message.label") }}</label>
     <div class="flex items-end gap-2.5">
       <textarea
         id="message"
         ref="textarea"
         v-model="messageContent"
-        @keydown="submitMessageOnEnter($event, requestSend)"
+        @keydown="submitMessageOnEnter($event, () => requestSend())"
         aria-describedby="message-limit"
         :aria-invalid="Boolean(contentError)"
         class="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-sky-100 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
@@ -163,6 +187,7 @@ defineExpose({ completeSubmission });
         class="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="
           isSendingMessage ||
+          Boolean(recoveryAttempt) ||
           isLoadingMessages ||
           !messageContent.trim() ||
           Boolean(contentError)

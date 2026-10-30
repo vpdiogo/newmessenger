@@ -1,5 +1,5 @@
-import { t, formatNumber, useFeedback } from "./i18n";
-import { computed, ref, watch, type Ref } from "vue";
+import { t, formatNumber, useFeedback, type PlainKey } from "./i18n";
+import { computed, reactive, ref, shallowReactive, watch, type Ref } from "vue";
 
 import { ApiError } from "./api/client";
 import {
@@ -15,7 +15,22 @@ type PendingMessage = {
   clientMessageId: string;
   content: string;
   conversationId: string;
+  draftVersion: number;
+  status: "sending" | "failed" | "rejected";
+  error: PlainKey | null;
 };
+
+type ConversationDraft = {
+  content: string;
+  version: number;
+  attempt: PendingMessage | null;
+  confirmation: Message | null;
+};
+
+export type MessageRecoveryState = Pick<
+  PendingMessage,
+  "content" | "status" | "error"
+>;
 
 export type MessageUpdateSource =
   "initial" | "earlier" | "realtime" | "recovery" | "local-send";
@@ -36,16 +51,52 @@ export function useConversationMessages(
 ) {
   const messages = ref<Message[]>([]);
   const earlierCursor = ref<string | null>(null);
-  const messageContent = ref("");
-  const pendingMessage = ref<PendingMessage | null>(null);
+  const drafts = shallowReactive(new Map<string, ConversationDraft>());
+  const unselectedDraft = ref("");
+  const selectedDraft = computed(() =>
+    selectedConversationId.value
+      ? drafts.get(selectedConversationId.value)
+      : undefined,
+  );
+  const messageContent = computed({
+    get: () => selectedDraft.value?.content ?? unselectedDraft.value,
+    set: (content: string) => {
+      if (disposed) return;
+      const id = selectedConversationId.value;
+      if (!id) {
+        unselectedDraft.value = content;
+        return;
+      }
+      const draft = getDraft(id);
+      if (draft.content === content) return;
+      draft.content = content;
+      draft.version += 1;
+      if (draft.attempt?.status === "rejected") draft.attempt = null;
+      pruneDraft(id, draft);
+    },
+  });
+  const pendingMessage = computed(() => {
+    const attempt = selectedDraft.value?.attempt;
+    return attempt && attempt.status !== "rejected" ? attempt : null;
+  });
+  const recoveryAttempt = computed(() => {
+    const draft = selectedDraft.value;
+    return draft?.attempt && draft.content.trim() !== draft.attempt.content
+      ? draft.attempt
+      : null;
+  });
   const isLoadingMessages = ref(false);
   const isLoadingEarlier = ref(false);
-  const isSendingMessage = ref(false);
-  const { key: sendError, message: sendErrorText } = useFeedback();
+  const isSendingMessage = computed(
+    () => selectedDraft.value?.attempt?.status === "sending",
+  );
+  const sendErrorText = computed(() => {
+    const error = selectedDraft.value?.attempt?.error;
+    return error ? t(error) : null;
+  });
   const { key: historyError, message: historyErrorText } = useFeedback();
   let selectionVersion = 0;
   let disposed = false;
-  let draftVersion = 0;
   let recovering = false;
   let recoveryRequested = false;
   let historyLoaded = false;
@@ -59,20 +110,30 @@ export function useConversationMessages(
       : null,
   );
   const messageErrorMessage = computed(
-    () => contentError.value ?? sendErrorText.value ?? historyErrorText.value,
+    () =>
+      contentError.value ??
+      (recoveryAttempt.value ? null : sendErrorText.value) ??
+      historyErrorText.value,
   );
 
-  const stopWatchingDraft = watch(
-    messageContent,
-    () => {
-      draftVersion += 1;
-      sendError.value = null;
-      if (pendingMessage.value?.content !== messageContent.value.trim()) {
-        pendingMessage.value = null;
-      }
-    },
-    { flush: "sync" },
-  );
+  function getDraft(id: string): ConversationDraft {
+    let draft = drafts.get(id);
+    if (!draft) {
+      draft = reactive({
+        content: "",
+        version: 0,
+        attempt: null,
+        confirmation: null,
+      });
+      drafts.set(id, draft);
+    }
+    return draft;
+  }
+
+  function pruneDraft(id: string, draft: ConversationDraft): void {
+    if (!draft.content && !draft.attempt && !draft.confirmation)
+      drafts.delete(id);
+  }
 
   function isCurrent(version: number): boolean {
     return !disposed && version === selectionVersion;
@@ -119,11 +180,24 @@ export function useConversationMessages(
       recoveryCursor = history.messages.at(-1)?.id;
       historyLoaded = true;
       isLoadingMessages.value = false;
-      await applyMessages(history.messages, version, "initial");
+      const draft = drafts.get(conversationId);
+      const confirmation = draft?.confirmation;
+      await applyMessages(
+        confirmation ? [...history.messages, confirmation] : history.messages,
+        version,
+        "initial",
+      );
+      if (isCurrent(version) && draft && draft.confirmation === confirmation) {
+        draft.confirmation = null;
+        pruneDraft(conversationId, draft);
+      }
     } catch {
       if (isCurrent(version)) {
         historyFailure = "latest";
         historyError.value = "message.historyFailed";
+        const confirmation = drafts.get(conversationId)?.confirmation;
+        if (confirmation)
+          await applyMessages([confirmation], version, "initial");
       }
     } finally {
       if (isCurrent(version)) {
@@ -140,13 +214,10 @@ export function useConversationMessages(
     const version = ++selectionVersion;
     messages.value = [];
     earlierCursor.value = null;
-    pendingMessage.value = null;
-    messageContent.value = "";
-    sendError.value = null;
+    unselectedDraft.value = "";
     historyError.value = null;
     isLoadingEarlier.value = false;
     isLoadingMessages.value = false;
-    isSendingMessage.value = false;
     recovering = false;
     recoveryRequested = false;
     historyLoaded = false;
@@ -188,48 +259,69 @@ export function useConversationMessages(
     }
   }
 
-  async function submitMessage(): Promise<MessageSubmissionResult> {
+  async function submitMessage(
+    retryOriginal = false,
+  ): Promise<MessageSubmissionResult> {
     const conversationId = selectedConversationId.value;
     const content = messageContent.value.trim();
     if (
+      disposed ||
       !conversationId ||
-      !content ||
-      contentError.value ||
       isSendingMessage.value ||
-      isLoadingMessages.value
+      isLoadingMessages.value ||
+      (retryOriginal
+        ? selectedDraft.value?.attempt?.status !== "failed"
+        : !content ||
+          Boolean(contentError.value) ||
+          Boolean(recoveryAttempt.value))
     )
       return "ignored";
+    const draft = getDraft(conversationId);
     const version = selectionVersion;
-    const submittedDraftVersion = draftVersion;
-    const request: PendingMessage = pendingMessage.value ?? {
-      clientMessageId: crypto.randomUUID(),
-      content,
-      conversationId,
-    };
-    isSendingMessage.value = true;
-    sendError.value = null;
+    const request: PendingMessage =
+      pendingMessage.value ??
+      reactive({
+        clientMessageId: crypto.randomUUID(),
+        content,
+        conversationId,
+        draftVersion: draft.version,
+        status: "sending" as const,
+        error: null,
+      });
+    if (draft.content.trim() === request.content)
+      request.draftVersion = draft.version;
+    draft.attempt = request;
+    request.status = "sending";
+    request.error = null;
     try {
       const message = await sendMessage(
         conversationId,
         request.clientMessageId,
         request.content,
       );
-      if (!isCurrent(version)) return "stale";
-      if (draftVersion === submittedDraftVersion) messageContent.value = "";
-      pendingMessage.value = null;
-      await applyMessages([message], version, "local-send");
+      if (disposed || draft.attempt !== request) return "stale";
+      if (draft.version === request.draftVersion) {
+        draft.content = "";
+        draft.version += 1;
+      }
+      draft.attempt = null;
+      const active = selectedConversationId.value === conversationId;
+      if (!active || isLoadingMessages.value || !historyLoaded)
+        draft.confirmation = message;
+      if (active)
+        await applyMessages([message], selectionVersion, "local-send");
+      pruneDraft(conversationId, draft);
       return isCurrent(version) ? "sent" : "stale";
     } catch (error) {
-      if (!isCurrent(version) || draftVersion !== submittedDraftVersion)
-        return "stale";
+      if (disposed || draft.attempt !== request) return "stale";
       if (
         error instanceof ApiError &&
         error.status >= 400 &&
         error.status < 500 &&
         ![408, 429].includes(error.status)
       ) {
-        pendingMessage.value = null;
-        sendError.value =
+        request.status = "rejected";
+        request.error =
           error.status === 400 || error.status === 413
             ? "message.rejectedContent"
             : error.status === 401
@@ -238,16 +330,23 @@ export function useConversationMessages(
                 ? "message.unavailable"
                 : "message.rejected";
       } else {
-        pendingMessage.value = request;
-        sendError.value =
+        request.status = "failed";
+        request.error =
           error instanceof ApiError && error.status === 429
             ? "message.rateLimited"
             : "message.unconfirmed";
       }
-      return "failed";
-    } finally {
-      if (isCurrent(version)) isSendingMessage.value = false;
+      return isCurrent(version) ? "failed" : "stale";
     }
+  }
+
+  function dismissRecovery(): void {
+    const id = selectedConversationId.value;
+    const draft = selectedDraft.value;
+    if (disposed || !id || !draft || draft.attempt?.status === "sending")
+      return;
+    draft.attempt = null;
+    pruneDraft(id, draft);
   }
 
   function handleMessageCreated(message: Message): void {
@@ -318,7 +417,8 @@ export function useConversationMessages(
     disposed = true;
     selectionVersion += 1;
     stopWatchingSelection();
-    stopWatchingDraft();
+    drafts.clear();
+    unselectedDraft.value = "";
   }
 
   return {
@@ -327,6 +427,9 @@ export function useConversationMessages(
     earlierCursor,
     messageContent,
     pendingMessage,
+    recoveryAttempt,
+    dismissRecovery,
+    retryOriginalMessage: () => submitMessage(true),
     isLoadingMessages,
     isLoadingEarlier,
     isSendingMessage,

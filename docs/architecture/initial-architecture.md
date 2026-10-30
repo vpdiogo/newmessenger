@@ -78,7 +78,7 @@ wires incoming events to message/discovery handlers, and disposes them on exit:
 | `auth/login.ts`, `auth/registration.ts`                 | Form values, feedback and single pending authentication submission.                                                      |
 | `useConversations.ts`                                   | Contact list, creation feedback and grouped refresh/discovery requests.                                                  |
 | `useConversationRoute.ts`                               | Read-only selected ID derived from URL and the loaded list, URL corrections and navigation intent.                       |
-| `useConversationMessages.ts`                            | Current draft/send state, history cursors, ID deduplication and recovery.                                                |
+| `useConversationMessages.ts`                            | Per-conversation drafts/send attempts, selected history, ID deduplication and recovery.                                  |
 | `useTranscriptScroll.ts`                                | DOM geometry and post-render restoration/follow behavior.                                                                |
 | `useConversationAnnouncements.ts`                       | Source-aware incoming-message and connection announcements, batching and timer cleanup.                                  |
 | `realtime.ts`                                           | One active dashboard socket, current-socket callback guards, automatic reconnect and manual capacity recovery.           |
@@ -98,8 +98,10 @@ opens settings; it does not own profile or app-preference state.
 Session and transport singletons assume one active dashboard per browser page;
 each tab is independent. Disposal invalidates pending callbacks and closes the
 owned socket. Request versions prevent late responses/effects from changing a
-new selection. They do not cancel server-side work or preserve per-conversation
-drafts: switching conversations currently clears draft/retry state (pending #58).
+new selection. Drafts and one unresolved send per conversation survive selection
+changes within this dashboard owner. Send outcomes update their originating state;
+inactive transcripts are not cached. Disposal/account changes clear retained state
+and invalidate callbacks; they do not cancel server-side work.
 
 ## Language and Settings Ownership
 

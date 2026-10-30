@@ -5,6 +5,6 @@ import SessionVerificationView from "./SessionVerificationView.vue";
 </script>
 
 <template>
-  <DashboardView v-if="session.isAuthenticated" />
+  <DashboardView v-if="session.isAuthenticated" :key="session.user?.sub" />
   <SessionVerificationView v-else />
 </template>

@@ -89,10 +89,13 @@ code correction, not an API policy change in this documentation.
 
 Enter sends, Shift+Enter inserts a newline; IME composition, held key repeats,
 loading/pending states and invalid drafts prevent sending. Unconfirmed transient
-failures retain the client ID for an unchanged manual retry. Editing failed text
-starts a new logical message with a new ID and cannot cancel a prior server
-acceptance. No outgoing resend occurs automatically. Switching conversations
-currently clears draft and pending-send recovery context; #58 proposes retention.
+failures retain the client ID for an unchanged manual retry. Drafts and one
+unresolved send per conversation survive switching within the dashboard session;
+reload, logout, account change or leaving the dashboard clears them.
+If newer text coexists with an unresolved original, retry the original or explicitly
+continue with the new draft before sending another message in that conversation.
+The latter dismisses local recovery only, never cancels a server acceptance and
+never sends automatically. A subsequent edited message uses a new client ID.
 
 ## History and Realtime Recovery
 

@@ -18,14 +18,15 @@ recover through HTTP history.
 - Email/password registration and login, with JWT session verification/recovery.
 - One-to-one conversations, URL-based selection and recent/earlier history.
 - Idempotent message sends, manual retry, Enter to send and Shift+Enter for a newline.
+- Per-conversation drafts and send recovery retained while the dashboard stays open.
 - Realtime delivery, reconnect recovery, accessible announcements and independent
   transcript/contact-list scrolling.
 - Optional per-user HTTP write quotas and five-connection WebSocket occupancy.
   Both enforcement switches default off; the 32 KiB body limit is always active.
 
 Delivery and limits are local to one backend instance. The MVP uses browser-local
-JWT storage and has no email-ownership verification, profile management, Redis,
-per-conversation retained drafts yet. See the
+JWT storage and has no email-ownership verification, profile management or Redis.
+See the
 [architecture and limitations](docs/architecture/initial-architecture.md).
 
 ## Run Locally

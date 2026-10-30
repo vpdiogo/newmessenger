@@ -46,7 +46,7 @@ Payloads, pagination and close semantics are in [API and client contracts](../ar
 - Refresh or select the same conversation with a draft: retain text/transcript
   and show existing contacts during refresh/failure. Switch conversations during
   delayed sends/history requests; no response may update the wrong selection.
-  Per-conversation draft retention is pending #58, not an implemented guarantee.
+  Return to each conversation and check that its own draft and send outcome remain.
 - Create a conversation and its first message remotely. The recipient discovers
   it without changing current selection/draft. Delay an in-flight list query to
   check grouped follow-up refresh. Creation without a message still needs manual
@@ -67,6 +67,12 @@ Payloads, pagination and close semantics are in [API and client contracts](../ar
 - After a simulated transient/lost-response failure, retry unchanged content with
   the original client ID. Editing uses a new ID and does not edit/cancel a stored
   message. A persisted message whose response was lost must not be duplicated.
+- While A sends, edit its draft and switch to B. B can send independently; returning
+  to A restores its pending guard, original failure or success without losing newer
+  edits. Exercise A-B-A and success racing with latest history. Retry the original
+  from the recovery block without changing the newer draft, or continue with the
+  new draft without sending automatically. Check both languages, keyboard/focus
+  and compact layouts. Logout/reload/dashboard disposal clears all retained state.
 - Check the 2,000 limit and correction. The current composer counts UTF-16 units
   while the API counts Unicode code points; see the documented discrepancy in
   [contracts](../architecture/api-contracts.md#conversations-and-messages).

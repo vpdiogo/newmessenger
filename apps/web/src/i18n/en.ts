@@ -94,6 +94,11 @@ export const en = {
   "message.sending": "Sending...",
   "message.retry": "Retry message",
   "message.send": "Send",
+  "message.previous": "Previous message",
+  "message.retryOriginal": "Retry original message",
+  "message.continueDraft": "Continue with new draft",
+  "message.dismissHelp":
+    "An unconfirmed message may have been received. Continuing with a new draft does not cancel the original message.",
   "message.counter": "{count} / {limit} characters",
   "message.limit":
     "Messages must contain at most {limit} characters. Shorten your message before sending.",
@@ -111,7 +116,7 @@ export const en = {
   "message.rateLimited":
     "Too many requests. Wait before retrying this message.",
   "message.unconfirmed":
-    "Unable to confirm the message was sent. Retry unchanged to avoid duplicates; editing sends a new message.",
+    "Unable to confirm the message was sent. Retry unchanged to avoid duplicates.",
   "message.recoveryFailed":
     "Unable to recover messages. Please retry loading history.",
   "message.retryHistory": "Retry loading history",
