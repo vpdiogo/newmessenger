@@ -62,13 +62,10 @@ development only.
 ## Language Settings
 
 Open Settings at the bottom of the desktop participant panel, or in the header
-when the panel is hidden and on other screens. Choose Automatic, Português
-(Brasil) or English; changes apply immediately and persist in this browser across
-reload/logout. Automatic uses the first supported browser preference (Portuguese
-or English), with Brazilian Portuguese as fallback. It is resolved at startup or
-when explicitly selected, without following OS changes during a conversation.
-User content stays unchanged; switching preserves the current session, draft,
-URL and connection. Unavailable storage keeps the choice in memory for the session.
+on other screens and compact layouts. Choose Automatic, Português (Brasil) or
+English. Changes apply immediately and are saved in this browser when storage is
+available. Automatic uses browser preferences at startup, falling back to
+Brazilian Portuguese.
 
 ## Documentation
 
