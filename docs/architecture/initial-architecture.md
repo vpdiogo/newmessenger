@@ -92,8 +92,8 @@ already-known IDs.
 Components under `components/conversations/` render controlled data and emit
 intents. Local presentation state, such as the expandable Start a conversation
 form, stays with its component. It does not create a competing selected-ID or
-message store. The right participant panel contains decorative avatar/email
-information, not a profile/settings model.
+message store. The right participant panel displays avatar/email information and
+opens settings; it does not own profile or app-preference state.
 
 Session and transport singletons assume one active dashboard per browser page;
 each tab is independent. Disposal invalidates pending callbacks and closes the
@@ -101,10 +101,25 @@ owned socket. Request versions prevent late responses/effects from changing a
 new selection. They do not cancel server-side work or preserve per-conversation
 drafts: switching conversations currently clears draft/retry state (pending #58).
 
+## Language and Settings Ownership
+
+`i18n/` owns typed catalogs, reactive locale resolution, browser-local preferences
+and formatting. It initializes before mounting; missing translations fall back to
+English. `App.vue` owns one native settings dialog, opened through a typed provided
+action shared by the header and participant panel.
+
+Data owners retain semantic feedback keys and expose computed translations.
+Language changes preserve application state and connections. Transcript formatting
+keeps grouping keys unchanged; announcements translate at publication without
+replaying published content. Usage is in the [README](../../README.md#language-settings);
+interaction and regression checks are in the
+[verification guide](../development/verification.md#language-and-settings).
+
 ## Security and Operational Boundaries
 
 JWTs expire after 15 minutes. The MVP stores them in browser local storage;
 `/auth/me` verifies and returns claims, not a live profile or email-ownership check.
+Unreadable token storage is treated as no credential so the public UI can mount.
 There is no token revocation/refresh or account-management flow. WebSocket JWTs
 are checked at connection admission; established sockets do not revalidate expiry.
 The client currently also retries `1008` policy closes automatically.

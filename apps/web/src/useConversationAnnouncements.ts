@@ -2,7 +2,8 @@ import { ref, watch, type Ref } from "vue";
 
 import type { Message } from "./api/conversations";
 
-import { CONNECTION_LIMIT_MESSAGE, type ConnectionState } from "./connection";
+import type { ConnectionState } from "./connection";
+import { t } from "./i18n";
 
 export function useConversationAnnouncements(
   conversationId: Ref<string | null>,
@@ -13,7 +14,8 @@ export function useConversationAnnouncements(
   const messageAnnouncement = ref("");
   const connectionAnnouncement = ref("");
   const announcedIds = new Set<string>();
-  let pendingMessages: string[] = [];
+  let pendingMessages: { participant: string | undefined; content: string }[] =
+    [];
   let messageTimer: ReturnType<typeof setTimeout> | undefined;
   let connectionTimer: ReturnType<typeof setTimeout> | undefined;
   let lastConnection: "connected" | "disconnected" | "limited" | undefined;
@@ -43,9 +45,10 @@ export function useConversationAnnouncements(
       )
         continue;
       announcedIds.add(message.id);
-      pendingMessages.push(
-        `${participantEmail() ?? "Participant"} says: ${message.content}`,
-      );
+      pendingMessages.push({
+        participant: participantEmail(),
+        content: message.content,
+      });
     }
     if (!pendingMessages.length || messageTimer !== undefined) return;
     messageTimer = setTimeout(() => {
@@ -54,7 +57,14 @@ export function useConversationAnnouncements(
       messageTimer = setTimeout(() => {
         messageTimer = undefined;
         if (disposed) return;
-        messageAnnouncement.value = pendingMessages.join("\n");
+        messageAnnouncement.value = pendingMessages
+          .map((message) =>
+            t("announcement.incoming", {
+              participant: message.participant ?? t("common.participant"),
+              content: message.content,
+            }),
+          )
+          .join("\n");
         pendingMessages = [];
       }, 100);
     }, 150);
@@ -74,16 +84,16 @@ export function useConversationAnnouncements(
         return;
       if (state === "limited") {
         lastConnection = state;
-        connectionAnnouncement.value = CONNECTION_LIMIT_MESSAGE;
+        connectionAnnouncement.value = t("connection.limitHelp");
       } else if (state === "connected") {
         lastConnection = state;
-        connectionAnnouncement.value = "Connection established.";
+        connectionAnnouncement.value = t("announcement.connected");
       } else {
         connectionTimer = setTimeout(() => {
           connectionTimer = undefined;
           if (disposed || connectionState.value !== "disconnected") return;
           lastConnection = "disconnected";
-          connectionAnnouncement.value = "Connection lost. Reconnecting.";
+          connectionAnnouncement.value = t("announcement.disconnected");
         }, 750);
       }
     },

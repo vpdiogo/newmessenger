@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -32,11 +33,10 @@ async function retry(): Promise<void> {
         >!</span
       >
       <h1 class="mt-5 text-2xl font-bold text-blue-950">
-        We could not verify your session
+        {{ t("session.title") }}
       </h1>
       <p class="mt-3 leading-7 text-slate-600">
-        Your messages remain protected. Check your connection or try again when
-        the service is available.
+        {{ t("session.description") }}
       </p>
       <button
         class="mt-6 rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -45,7 +45,9 @@ async function retry(): Promise<void> {
         @click="retry"
       >
         {{
-          isRetrying || session.status === "verifying" ? "Retrying..." : "Retry"
+          isRetrying || session.status === "verifying"
+            ? t("common.retrying")
+            : t("common.retry")
         }}
       </button>
     </div>

@@ -5,7 +5,12 @@ export function clearAccessToken(): void {
 }
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(accessTokenKey);
+  try {
+    return localStorage.getItem(accessTokenKey);
+  } catch {
+    // Unavailable browser storage cannot supply an authenticated credential.
+    return null;
+  }
 }
 
 export function setAccessToken(accessToken: string): void {

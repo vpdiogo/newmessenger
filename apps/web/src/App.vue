@@ -1,7 +1,21 @@
 <script setup lang="ts">
+import { computed, provide, ref } from "vue";
+import { useRoute } from "vue-router";
+import SettingsDialog from "./components/SettingsDialog.vue";
+import { openSettingsKey } from "./settings";
+import { t } from "./i18n";
 import { session } from "./auth/session";
 import { logout } from "./router";
 import newMessengerLogo from "./assets/new-messenger-logo.png";
+const route = useRoute();
+const settingsDialog = ref<InstanceType<typeof SettingsDialog> | null>(null);
+const inDashboard = computed(
+  () => route.name === "dashboard" && session.isAuthenticated,
+);
+function openSettings(opener: HTMLElement): void {
+  settingsDialog.value?.open(opener);
+}
+provide(openSettingsKey, openSettings);
 </script>
 
 <template>
@@ -41,7 +55,7 @@ import newMessengerLogo from "./assets/new-messenger-logo.png";
               type="button"
               @click="logout"
             >
-              Log out
+              {{ t("nav.logout") }}
             </button>
           </template>
           <template v-else>
@@ -49,20 +63,30 @@ import newMessengerLogo from "./assets/new-messenger-logo.png";
               class="text-sm font-semibold text-slate-600 hover:text-blue-700"
               to="/login"
             >
-              Log in
+              {{ t("nav.login") }}
             </RouterLink>
             <RouterLink
               class="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-600/25 hover:bg-blue-700"
               to="/register"
             >
-              Register
+              {{ t("nav.register") }}
             </RouterLink>
           </template>
+          <button
+            type="button"
+            data-settings-opener
+            :class="inDashboard ? 'xl:hidden' : ''"
+            class="text-sm font-semibold text-blue-700 hover:text-blue-800"
+            @click="openSettings($event.currentTarget as HTMLElement)"
+          >
+            {{ t("settings.title") }}
+          </button>
         </nav>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-3">
         <RouterView />
       </div>
     </div>
+    <SettingsDialog ref="settingsDialog" />
   </main>
 </template>

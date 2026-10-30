@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, formatNumber } from "../../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { MessageSubmissionResult } from "../../useConversationMessages";
@@ -144,7 +145,7 @@ defineExpose({ completeSubmission });
     class="shrink-0 rounded-xl border border-white/60 bg-sky-100/20 p-3 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:p-4"
     @submit.prevent="requestSend"
   >
-    <label class="sr-only" for="message">Message</label>
+    <label class="sr-only" for="message">{{ t("message.label") }}</label>
     <div class="flex items-end gap-2.5">
       <textarea
         id="message"
@@ -154,7 +155,7 @@ defineExpose({ completeSubmission });
         aria-describedby="message-limit"
         :aria-invalid="Boolean(contentError)"
         class="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-sky-100 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
-        placeholder="Type a message..."
+        :placeholder="t('message.placeholder')"
         required
         rows="1"
       />
@@ -192,16 +193,20 @@ defineExpose({ completeSubmission });
         </svg>
         {{
           isSendingMessage
-            ? "Sending..."
+            ? t("message.sending")
             : isRetrying
-              ? "Retry message"
-              : "Send"
+              ? t("message.retry")
+              : t("message.send")
         }}
       </button>
     </div>
     <p id="message-limit" class="mt-2 text-right text-xs text-slate-500">
-      {{ contentLength.toLocaleString("en-US") }} /
-      {{ contentLimit.toLocaleString("en-US") }} characters
+      {{
+        t("message.counter", {
+          count: formatNumber(contentLength),
+          limit: formatNumber(contentLimit),
+        })
+      }}
     </p>
   </form>
 </template>

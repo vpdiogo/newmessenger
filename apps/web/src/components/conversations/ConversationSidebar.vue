@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 
+import type { PlainKey } from "../../i18n";
 import type { ConnectionState } from "../../connection";
 
 import type { Conversation } from "../../api/conversations";
 import defaultUserAvatar from "../../assets/default-user-avatar.png";
+
+const connectionLabels: Record<ConnectionState, PlainKey> = {
+  connecting: "connection.connecting",
+  connected: "connection.connected",
+  disconnected: "connection.disconnected",
+  limited: "connection.limited",
+  "retrying-limit": "connection.connecting",
+};
 
 defineProps<{
   conversations: Conversation[];
@@ -89,13 +99,10 @@ onBeforeUnmount(() => {
             connectionState === 'connected' ? 'bg-emerald-500' : 'bg-amber-400'
           "
         ></span>
-        Connection:
-        {{
-          connectionState === "retrying-limit" ? "connecting" : connectionState
-        }}
+        {{ t(connectionLabels[connectionState]) }}
       </p>
       <p class="mt-2 text-xs leading-5 text-slate-500">
-        Share this email so someone can start a conversation with you.
+        {{ t("conversation.shareEmail") }}
       </p>
     </section>
 
@@ -103,9 +110,11 @@ onBeforeUnmount(() => {
       <div class="mb-2 flex shrink-0 items-center justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
-            Messages
+            {{ t("conversation.messages") }}
           </p>
-          <h1 class="mt-1 text-xl font-bold text-blue-950">Conversations</h1>
+          <h1 class="mt-1 text-xl font-bold text-blue-950">
+            {{ t("conversation.title") }}
+          </h1>
         </div>
         <button
           class="rounded-full px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -113,7 +122,11 @@ onBeforeUnmount(() => {
           type="button"
           @click="emit('refresh')"
         >
-          {{ isLoadingConversations ? "Refreshing..." : "Refresh" }}
+          {{
+            isLoadingConversations
+              ? t("conversation.refreshing")
+              : t("conversation.refresh")
+          }}
         </button>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -121,13 +134,13 @@ onBeforeUnmount(() => {
           v-if="isLoadingConversations && conversations.length === 0"
           class="text-sm text-slate-500"
         >
-          Loading...
+          {{ t("common.loading") }}
         </p>
         <p
           v-else-if="conversations.length === 0"
           class="rounded-2xl border border-dashed border-sky-200 bg-white/50 p-4 text-sm leading-6 text-slate-500"
         >
-          No conversations yet. Start one using a contact email.
+          {{ t("conversation.empty") }}
         </p>
         <ul v-else class="space-y-1">
           <li v-for="conversation in conversations" :key="conversation.id">
@@ -178,13 +191,15 @@ onBeforeUnmount(() => {
         class="mb-2 flex gap-2"
         @submit.prevent="emit('create')"
       >
-        <label class="sr-only" for="participant-email">Email address</label>
+        <label class="sr-only" for="participant-email">{{
+          t("conversation.emailLabel")
+        }}</label>
         <input
           id="participant-email"
           ref="participantEmailInput"
           v-model="participantEmail"
           class="min-w-0 flex-1 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500"
-          placeholder="person@example.com"
+          :placeholder="t('conversation.placeholder')"
           required
           type="email"
         />
@@ -193,7 +208,11 @@ onBeforeUnmount(() => {
           :disabled="isCreatingConversation"
           type="submit"
         >
-          {{ isCreatingConversation ? "Creating..." : "Start" }}
+          {{
+            isCreatingConversation
+              ? t("conversation.creating")
+              : t("conversation.start")
+          }}
         </button>
       </form>
       <p
@@ -216,7 +235,9 @@ onBeforeUnmount(() => {
         >
           {{ isStartFormOpen ? "×" : "+" }}
         </span>
-        <span>{{ isStartFormOpen ? "Close" : "Start a conversation" }}</span>
+        <span>{{
+          isStartFormOpen ? t("common.close") : t("conversation.openForm")
+        }}</span>
       </button>
     </div>
   </aside>

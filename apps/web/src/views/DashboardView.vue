@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale } from "../i18n";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -13,7 +14,6 @@ import {
   disconnectRealtime,
   retryRealtime,
 } from "../realtime";
-import { CONNECTION_LIMIT_MESSAGE } from "../connection";
 import { session } from "../auth/session";
 import { groupTranscriptMessages } from "../transcript";
 import {
@@ -116,7 +116,9 @@ const selectedConversation = computed(() =>
   ),
 );
 
-const messageGroups = computed(() => groupTranscriptMessages(messages.value));
+const messageGroups = computed(() =>
+  groupTranscriptMessages(messages.value, locale.value),
+);
 
 const {
   messageAnnouncement,
@@ -182,7 +184,7 @@ onBeforeUnmount(() => {
     <div
       role="region"
       :aria-labelledby="selectedConversation ? 'conversation-title' : undefined"
-      :aria-label="selectedConversation ? undefined : 'Conversation'"
+      :aria-label="selectedConversation ? undefined : t('common.conversation')"
       class="flex min-h-[32rem] min-w-0 flex-col gap-1.5 lg:h-full lg:min-h-0"
     >
       <div
@@ -191,7 +193,7 @@ onBeforeUnmount(() => {
         "
         class="shrink-0 max-h-32 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
       >
-        <p>{{ CONNECTION_LIMIT_MESSAGE }}</p>
+        <p>{{ t("connection.limitHelp") }}</p>
         <button
           type="button"
           :disabled="connectionState === 'retrying-limit'"
@@ -199,7 +201,9 @@ onBeforeUnmount(() => {
           @click="retryRealtime"
         >
           {{
-            connectionState === "retrying-limit" ? "Connecting..." : "Try again"
+            connectionState === "retrying-limit"
+              ? t("connection.pending")
+              : t("connection.tryAgain")
           }}
         </button>
       </div>
@@ -241,10 +245,10 @@ onBeforeUnmount(() => {
             >✦</span
           >
           <p class="mt-5 text-xl font-bold text-blue-950">
-            Your conversations live here
+            {{ t("conversation.emptyTitle") }}
           </p>
           <p class="mt-2 leading-7 text-slate-500">
-            Choose a conversation or start a new one to begin messaging.
+            {{ t("conversation.emptyDescription") }}
           </p>
         </div>
       </div>
@@ -261,7 +265,7 @@ onBeforeUnmount(() => {
           type="button"
           @click="retryHistory"
         >
-          Retry loading history
+          {{ t("message.retryHistory") }}
         </button>
       </p>
     </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import { useRouter } from "vue-router";
 
 import { registerSession } from "../auth/session";
@@ -25,12 +26,12 @@ const {
       class="rounded-3xl border border-white bg-white/75 p-6 shadow-xl shadow-sky-950/10 backdrop-blur sm:p-8"
     >
       <div class="mb-7">
-        <p class="text-sm font-bold text-sky-700">Start messaging</p>
+        <p class="text-sm font-bold text-sky-700">{{ t("home.start") }}</p>
         <h1 class="mt-2 text-3xl font-bold tracking-tight text-blue-950">
-          Create an account
+          {{ t("register.title") }}
         </h1>
         <p class="mt-2 text-slate-600">
-          Set up your address and join the conversation.
+          {{ t("register.description") }}
         </p>
       </div>
       <form
@@ -40,7 +41,7 @@ const {
         @submit.prevent="submit"
       >
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
-          Email
+          {{ t("common.email") }}
           <input
             v-model="email"
             :disabled="isSubmitting"
@@ -64,7 +65,7 @@ const {
           {{ emailError }}
         </p>
         <label class="block space-y-1.5 text-sm font-semibold text-slate-700">
-          Password
+          {{ t("common.password") }}
           <input
             v-model="password"
             :disabled="isSubmitting"
@@ -83,10 +84,7 @@ const {
           />
         </label>
         <p id="registration-password-guidance" class="text-sm text-slate-600">
-          Use 15–256 characters: a unique, long password or several unrelated
-          words. Spaces, accents and symbols are welcome; character categories
-          are not required. Avoid only whitespace or your complete email
-          address.
+          {{ t("register.guidance") }}
         </p>
         <p
           v-if="passwordError"
@@ -108,16 +106,16 @@ const {
           :disabled="isSubmitting"
           type="submit"
         >
-          {{ isSubmitting ? "Creating account..." : "Create account" }}
+          {{ isSubmitting ? t("register.pending") : t("register.submit") }}
         </button>
       </form>
       <p class="mt-6 text-sm text-slate-600">
-        Already have an account?
+        {{ t("register.hasAccount") }}
         <RouterLink
           class="font-semibold text-blue-700 hover:text-blue-800"
           to="/login"
         >
-          Log in
+          {{ t("nav.login") }}
         </RouterLink>
       </p>
     </div>
@@ -128,6 +126,9 @@ const {
 @media (min-width: 640px) and (max-height: 760px) {
   section {
     padding-block: 1rem;
+  }
+  section:lang(pt-BR) {
+    padding-block: 0.75rem;
   }
 }
 </style>

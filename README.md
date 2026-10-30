@@ -14,6 +14,7 @@ recover through HTTP history.
 
 ## What Works
 
+- English/Brazilian Portuguese UI with automatic browser-language selection and local language settings.
 - Email/password registration and login, with JWT session verification/recovery.
 - One-to-one conversations, URL-based selection and recent/earlier history.
 - Idempotent message sends, manual retry, Enter to send and Shift+Enter for a newline.
@@ -24,7 +25,7 @@ recover through HTTP history.
 
 Delivery and limits are local to one backend instance. The MVP uses browser-local
 JWT storage and has no email-ownership verification, profile management, Redis,
-per-conversation retained drafts or language settings yet. See the
+per-conversation retained drafts yet. See the
 [architecture and limitations](docs/architecture/initial-architecture.md).
 
 ## Run Locally
@@ -57,6 +58,14 @@ HTTP server is running; it does not test database connectivity.
 For environment variables, troubleshooting and checks, follow the
 [development guide](docs/development/setup.md). Example credentials are for local
 development only.
+
+## Language Settings
+
+Open Settings at the bottom of the desktop participant panel, or in the header
+on other screens and compact layouts. Choose Automatic, Português (Brasil) or
+English. Changes apply immediately and are saved in this browser when storage is
+available. Automatic uses browser preferences at startup, falling back to
+Brazilian Portuguese.
 
 ## Documentation
 

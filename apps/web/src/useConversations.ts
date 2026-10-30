@@ -1,3 +1,4 @@
+import { useFeedback } from "./i18n";
 import { ref, watch } from "vue";
 
 import { ApiError } from "./api/client";
@@ -14,8 +15,8 @@ export function useConversations() {
   const participantEmail = ref("");
   const isLoadingConversations = ref(false);
   const isCreatingConversation = ref(false);
-  const listError = ref<string | null>(null);
-  const creationError = ref<string | null>(null);
+  const { key: listError, message: listErrorText } = useFeedback();
+  const { key: creationError, message: creationErrorText } = useFeedback();
   const hasLoadedConversations = ref(false);
   let disposed = false;
   let refreshPromise: Promise<boolean> | null = null;
@@ -53,8 +54,7 @@ export function useConversations() {
           conversations.value = result;
           hasLoadedConversations.value = true;
         } catch {
-          if (!disposed)
-            listError.value = "Unable to load conversations. Please try again.";
+          if (!disposed) listError.value = "conversation.listFailed";
           return false;
         }
       } while (refreshRequested && !disposed);
@@ -81,12 +81,11 @@ export function useConversations() {
     const email = participantEmail.value.trim().toLowerCase();
     creationError.value = null;
     if (!email) {
-      creationError.value =
-        "Enter the email of the person you want to message.";
+      creationError.value = "conversation.emailRequired";
       return null;
     }
     if (email === session.user?.email.toLowerCase()) {
-      creationError.value = "You cannot start a conversation with yourself.";
+      creationError.value = "conversation.self";
       return null;
     }
     let version = inputVersion;
@@ -101,8 +100,7 @@ export function useConversations() {
       const refreshed = await loadConversations();
       if (disposed) return null;
       if (!refreshed && inputVersion === version) {
-        creationError.value =
-          "The conversation was created, but the list could not be updated. Use Refresh to find it.";
+        creationError.value = "conversation.createdRefreshFailed";
       }
       return refreshed ? id : null;
     } catch (error) {
@@ -110,15 +108,15 @@ export function useConversations() {
       creationError.value =
         error instanceof ApiError
           ? error.status === 404
-            ? "No registered user was found with this email."
+            ? "conversation.notFound"
             : error.status === 400
-              ? "Check the email address before starting a conversation."
+              ? "conversation.invalidEmail"
               : error.status === 401
-                ? "Your session has expired. Log in again to start a conversation."
+                ? "conversation.sessionExpired"
                 : error.status === 429
-                  ? "Too many requests. Wait before starting another conversation."
-                  : "Unable to create the conversation. Please try again."
-          : "Unable to create the conversation. Check your connection and try again.";
+                  ? "conversation.rateLimited"
+                  : "conversation.createFailed"
+          : "conversation.networkFailed";
       return null;
     } finally {
       if (!disposed) isCreatingConversation.value = false;
@@ -136,8 +134,8 @@ export function useConversations() {
     participantEmail,
     isLoadingConversations,
     isCreatingConversation,
-    listError,
-    creationError,
+    listError: listErrorText,
+    creationError: creationErrorText,
     loadConversations,
     submitConversation,
     discoverConversation,

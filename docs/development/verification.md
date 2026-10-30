@@ -130,3 +130,23 @@ Label clock advancement, delayed responses/handshakes and injected errors as
 simulations. Record actual browser zoom separately from CSS zoom or reduced-
 viewport equivalents. Activation, monitoring and rollback are owner actions in
 [production guidance](../deployment/production.md#activate-or-disable-abuse-controls).
+
+## Language and Settings
+
+- Use fresh browser preferences to check Automatic (`pt-PT` → `pt-BR`, `en-US` →
+  `en`, unsupported-only preferences → `pt-BR`). Explicit choices override them;
+  reload retains the chosen mode. Invalid/unavailable storage remains nonfatal.
+  Run global storage-denial QA against the production build: Vue Router development
+  tooling also reads storage during import and can fail before app bootstrap.
+- Open the desktop participant-footer control with/without a selected contact;
+  check the header entry at 1150 × 682, mobile and public/auth/session-recovery
+  screens. Check dialog focus, keyboard/Escape, and focus return after resizing.
+- Switch with a draft, delayed send and existing failed retry. Preserve the exact
+  URL, selected conversation, values, request/client ID and socket. Existing errors
+  translate without another request. Locale does not change password/message rules.
+- Verify dates/numbers and both-language long feedback at 1440 × 900, 1150 × 682,
+  reduced height and zoom. Preserve grouping, ordering and independent scrolling.
+- Receive new content, change language, and verify no old announcement is replayed.
+  The next legitimate event uses the new language; user content stays exact.
+  Exercise pending auth and session recovery in both languages. Record simulated
+  delays, errors, storage denial and unrun spoken-reader/browser-zoom checks.
