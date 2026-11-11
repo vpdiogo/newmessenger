@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { constants } from "node:os";
 
 export class CommandFailure extends Error {
   constructor(code) {
@@ -25,7 +26,7 @@ export function execute(
       child.kill("SIGTERM");
       killTimer ??= setTimeout(() => child.kill("SIGKILL"), 5000);
     };
-    const abort = () => stop(143);
+    const abort = () => stop(signal?.reason === 130 ? 130 : 143);
     const timer = setTimeout(() => stop(124), timeout);
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) abort();
@@ -37,11 +38,12 @@ export function execute(
     child.on("error", () => {
       failure ??= 127;
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signalName) => {
       clearTimeout(timer);
       clearTimeout(killTimer);
       signal?.removeEventListener("abort", abort);
-      const exitCode = failure ?? code ?? 1;
+      const signalCode = constants.signals[signalName];
+      const exitCode = failure ?? code ?? (signalCode ? 128 + signalCode : 1);
       if (exitCode) reject(new CommandFailure(exitCode));
       else resolve(output);
     });

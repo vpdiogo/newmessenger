@@ -247,6 +247,30 @@ test("restore uses only the isolated host, validates archive and reports restore
   });
 });
 
+test("command runner preserves child signals and caller interrupt status", async () => {
+  for (const [signal, code] of [
+    ["SIGTERM", 143],
+    ["SIGKILL", 137],
+    ["SIGINT", 130],
+  ]) {
+    await assert.rejects(
+      execute(process.execPath, [
+        "-e",
+        `process.kill(process.pid, '${signal}')`,
+      ]),
+      (error) => error.exitCode === code,
+    );
+  }
+  const controller = new AbortController();
+  controller.abort(130);
+  await assert.rejects(
+    execute(process.execPath, ["-e", "setInterval(()=>{},1000)"], {
+      signal: controller.signal,
+    }),
+    (error) => error.exitCode === 130,
+  );
+});
+
 test("command runner bounds execution and does not expose stderr or arguments", async () => {
   await assert.rejects(
     execute(process.execPath, [

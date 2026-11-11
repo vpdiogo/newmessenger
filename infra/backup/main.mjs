@@ -3,8 +3,8 @@ import { operate } from "./operations.mjs";
 
 process.umask(0o077);
 const controller = new AbortController();
-process.once("SIGTERM", () => controller.abort());
-process.once("SIGINT", () => controller.abort());
+process.once("SIGTERM", () => controller.abort(143));
+process.once("SIGINT", () => controller.abort(130));
 const action = process.argv[2] || "backup";
 if (
   process.argv.length > 3 ||
