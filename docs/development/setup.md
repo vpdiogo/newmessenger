@@ -5,8 +5,7 @@ recreate package manifests, TypeScript configuration or migrations.
 
 ## Prerequisites
 
-- Node.js LTS and Corepack. The local workflow is verified with Node.js 24;
-  `render.yaml` pins Node.js 22.12.0 for the backend deployment separately.
+- Node.js 24 LTS and Corepack.
 - Docker with the Compose plugin.
 - pnpm 12.9.1, selected by `package.json` through `corepack pnpm`.
 
@@ -86,6 +85,7 @@ instead of starting duplicates.
 | `format`                              | Rewrite formatting; use deliberately, not as a read-only check.                |
 
 Start the local database and apply migrations before backend integration tests.
+Container helper tests use `node --test infra/docker/*.test.mjs`.
 Some tests skip without local database configuration; inspect test counts and
 skips rather than relying solely on the exit code. Choose checks relevant to the
 change and follow [AGENTS.md](../../AGENTS.md) for delivery requirements.

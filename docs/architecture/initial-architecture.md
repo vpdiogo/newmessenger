@@ -12,6 +12,12 @@ The current implementation adds routing, presentation/effect separation, session
 recovery, registration feedback and opt-in abuse controls within those boundaries.
 A deployment diagram alone does not justify Redis or additional services.
 
+The VPS foundation packages this same design behind central Caddy, with an
+isolated PostgreSQL volume/network and explicit one-shot migrations. API/web
+share only ingress; no distributed state or new application service is introduced.
+Deployment and activation boundaries are in the
+[operations guide](../deployment/production.md).
+
 ```mermaid
 flowchart LR
   client[Vue browser client]

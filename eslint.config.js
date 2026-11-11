@@ -11,6 +11,10 @@ export default tseslint.config(
   tseslint.configs.recommended,
   ...vue.configs["flat/essential"],
   {
+    files: ["infra/docker/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     files: ["**/*.vue"],
     languageOptions: {
       parserOptions: { parser: tseslint.parser },
