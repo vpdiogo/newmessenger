@@ -85,7 +85,7 @@ instead of starting duplicates.
 | `format`                              | Rewrite formatting; use deliberately, not as a read-only check.                |
 
 Start the local database and apply migrations before backend integration tests.
-Container helper tests use `node --test infra/docker/*.test.mjs`.
+Container/backup helper tests use `node --test infra/docker/*.test.mjs infra/backup/*.test.mjs`.
 Some tests skip without local database configuration; inspect test counts and
 skips rather than relying solely on the exit code. Choose checks relevant to the
 change and follow [AGENTS.md](../../AGENTS.md) for delivery requirements.

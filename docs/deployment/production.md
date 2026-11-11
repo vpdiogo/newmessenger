@@ -1,7 +1,7 @@
 # VPS Deployment
 
-Deployment foundation for #82/#83. **Public activation waits for #84, including an
-off-VPS backup and restore rehearsal.** This configuration does not establish live
+Deployment foundation for #82/#83. **Public activation requires an off-VPS backup,
+verified alerts and an isolated restore rehearsal.** This configuration does not establish live
 hosting settings or publish images.
 
 ## Topology and Prerequisites
@@ -30,9 +30,9 @@ the same origin. Register/resolve that DuckDNS name before public TLS validation
 2. Manually run **Publish verified images** from trusted workflow code, selecting
    a trusted commit, branch or tag and the public HTTPS API URL ending in `/api`.
    It resolves one SHA, runs repository checks, then builds Linux amd64 targets
-   `api`, `web` and `migrate` from that SHA. It never connects to the VPS.
-3. Require all three publish jobs to succeed. Save their digest references from
-   the run summaries. Tags are `ghcr.io/vpdiogo/newmessenger-{api,web,migrate}:<sha>`;
+   `api`, `web`, `migrate` and `backup` from that SHA. It never connects to the VPS.
+3. Require all four publish jobs to succeed. Save their digest references from
+   the run summaries. Tags are `ghcr.io/vpdiogo/newmessenger-{api,web,migrate,backup}:<sha>`;
    tags can be overwritten by a rerun, so deploy by digest. Keep the API URL
    consistent across the release. It is public build configuration, not a secret.
 4. Check each package's visibility and repository Actions access. Private packages
@@ -56,7 +56,7 @@ Keep `infra/docker/init-app.sql` readable by the database container (`chmod 644`
 Copy `.env.production.example` to `.env.production`, set mode `600`, and fill all
 placeholders outside Git. Generate three independent secrets with
 `openssl rand -hex 32`: database administrator password, app-role password and JWT
-secret. Set all three image references to that release's digests. Keep
+secret. Set all four image references to that release's digests. Keep
 `CORS_ORIGIN=https://newmessenger-app.duckdns.org` and `PROXY_NETWORK=proxy`.
 Do not reuse development credentials or expose database/JWT secrets to the web.
 
@@ -142,15 +142,18 @@ in [API abuse protection](../architecture/api-abuse-protection.md). Do not enabl
 unconditional forwarded-header trust. Bounded container logs can still contain
 existing application connection metadata; these controls are not DDoS protection.
 
-## Interface for Backup/Recovery (#84)
+## Backup and Recovery
 
 Reuse project `newmessenger`, service `postgres`, internal `database` network and
 volume `postgres-data` above. Operator configuration is `.env.production`:
 `POSTGRES_DB`, `APP_DB_USER`, `APP_DB_PASSWORD`, `POSTGRES_ADMIN_PASSWORD`,
-`JWT_SECRET` and the three release image references. Discover the database with
+`JWT_SECRET` and the release image references. Discover the database with
 Compose service commands, never another project's container name. Keep credentials
-and release/config recovery material outside Git. No R2, Restic, schedule or
-Telegram runtime is installed by this foundation.
+and release/config recovery material outside Git. Follow
+[backup and recovery](backups.md) for the operational image, private `.env.backup`,
+systemd scheduling, R2/Telegram setup and isolated restore. Compose requires
+version 2.24 or newer for optional backup environment files. Installing or enabling
+these owner-operated services is not part of repository delivery.
 
 ## Previous Hosting
 

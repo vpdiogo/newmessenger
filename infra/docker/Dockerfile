@@ -52,3 +52,18 @@ COPY infra/docker/Caddyfile /etc/caddy/Caddyfile
 ARG BUILD_REVISION=local
 LABEL org.opencontainers.image.revision=$BUILD_REVISION
 EXPOSE 8080
+
+FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS backup-node
+FROM restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510 AS restic
+FROM postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac AS backup
+COPY --from=backup-node /usr/local/bin/node /usr/local/bin/node
+COPY --from=restic /usr/bin/restic /usr/local/bin/restic
+COPY --chown=postgres:postgres infra/backup /opt/newmessenger/backup
+RUN mkdir -p /state /repository && chown postgres:postgres /state /repository && chmod 700 /state /repository \
+    && node --version && pg_dump --version && restic version
+ARG BUILD_REVISION=local
+LABEL org.opencontainers.image.revision=$BUILD_REVISION
+USER postgres
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["sh", "/opt/newmessenger/backup/entrypoint.sh"]
+CMD ["backup"]

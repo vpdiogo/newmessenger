@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily New Messenger backup (owner may change time and timezone)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 America/Sao_Paulo
+Persistent=true
+Unit=newmessenger-backup.service
+
+[Install]
+WantedBy=timers.target
