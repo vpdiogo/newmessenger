@@ -64,5 +64,6 @@ RUN mkdir -p /state /repository && chown postgres:postgres /state /repository &&
 ARG BUILD_REVISION=local
 LABEL org.opencontainers.image.revision=$BUILD_REVISION
 USER postgres
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["sh", "/opt/newmessenger/backup/entrypoint.sh"]
 CMD ["backup"]
