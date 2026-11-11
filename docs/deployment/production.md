@@ -64,11 +64,11 @@ From that directory, use this prefix for every command:
 
 ```bash
 dc() { docker compose --env-file .env.production -f compose.production.yaml "$@"; }
-dc config --quiet
-dc --profile tools pull
-dc up -d --wait postgres
-dc run --rm migrate
-dc up -d --wait api web
+dc config --quiet &&
+  dc --profile tools pull &&
+  dc up -d --wait postgres &&
+  dc run --rm migrate &&
+  dc up -d --wait api web
 ```
 
 Start with the new empty volume; no Supabase import or reset is needed. `migrate`
@@ -120,8 +120,8 @@ Feature scenarios are in the [verification guide](../development/verification.md
 For updates, retain the previous release's three digest references and matching
 operator files securely. Read pending migrations and confirm the previous app
 images remain compatible with the resulting schema **before proceeding**. A brief
-New Messenger maintenance window is acceptable: `dc stop api web`, update files
-and image references, pull, run `dc run --rm migrate`, then `dc up -d --wait api web`.
+New Messenger maintenance window is acceptable: stop API/web with `dc stop api web`,
+update files and image references, then run the guarded sequence above.
 Avoid changing project volume/network names. Never use `down --volumes`.
 
 If a compatible application release fails, restore prior API/web digest references
