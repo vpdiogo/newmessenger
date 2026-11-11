@@ -1,6 +1,6 @@
 # New Messenger
 
-[![Node.js 22](https://img.shields.io/badge/Node.js-22-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![TypeScript 6](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Fastify 5](https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white)](https://fastify.dev/)
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
@@ -31,8 +31,7 @@ See the
 
 ## Run Locally
 
-Use Node.js LTS, Corepack and Docker Compose. The local workflow is verified with
-Node.js 24; `render.yaml` separately pins the deployed backend to Node.js 22.12.0.
+Use Node.js 24 LTS, Corepack and Docker Compose.
 `package.json` pins pnpm 12.9.1.
 
 From an existing checkout, install dependencies and create local configuration.
@@ -80,10 +79,10 @@ Brazilian Portuguese.
 | Deploy, configure or roll back                   | [Production deployment](docs/deployment/production.md)            |
 | Work as a contributor or agent                   | [Project guidelines](AGENTS.md)                                   |
 
-The documented hosting topology uses Vercel for the web client, Render for the
-API and Supabase for PostgreSQL. See the deployment guide for the recorded public
-URLs and operational limitations; repository defaults do not establish current
-production settings. Add infrastructure only for a demonstrated requirement.
+The VPS deployment foundation packages web, API and dedicated PostgreSQL behind
+the existing central Caddy. Public activation waits for backup/restore readiness
+(#84); repository files do not establish live hosting settings. See the deployment
+guide for release operations and historical provider URLs.
 
 ---
 

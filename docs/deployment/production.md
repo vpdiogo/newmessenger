@@ -1,163 +1,161 @@
-# Production Deployment
+# VPS Deployment
 
-## Architecture
+Deployment foundation for #82/#83. **Public activation waits for #84, including an
+off-VPS backup and restore rehearsal.** This configuration does not establish live
+hosting settings or publish images.
 
-Deploy the Vue application as a Vercel project with `apps/web` as its root
-directory. Deploy the Fastify application as one Render web service using the
-root `render.yaml`. Use Supabase only as managed PostgreSQL.
+## Topology and Prerequisites
 
-The initial Render service uses the Free compute plan for MVP demonstration.
-Render can spin down an idle Free service, disconnecting WebSocket clients and
-causing a cold start on the next connection. The client reconnects and recovers
-history, but this plan is not suitable for continuous production availability.
+Run as `sysadmin` in `/srv/apps/newmessenger` on the shared amd64 VPS. Docker and
+Compose are required; host Node/pnpm are not. Existing central Caddy in
+`/srv/proxy/caddy` (project `reverse-proxy`) owns ports 80/443, TLS volumes and the
+external `proxy` network. Preserve its Pocando ES routes and certificates.
 
-The browser communicates only with the Fastify API. Do not expose a Supabase
-project URL, database URL, or Supabase key to the frontend.
+`compose.production.yaml` defines project `newmessenger`: services `api`, `web`,
+`postgres` and one-shot `migrate` (profile `tools`). Only API/web join `proxy`, as
+`newmessenger-api:3000` and `newmessenger-web:8080`. PostgreSQL joins only internal
+network `newmessenger_database`; volume `newmessenger_postgres-data` persists data.
+No application ports are published. API/PostgreSQL/web ceilings are respectively
+1 GiB/0.75 CPU, 1 GiB/0.50 CPU and 128 MiB/0.25 CPU; these are limits, not reservations.
 
-Authenticated HTTP write limits and per-user WebSocket occupancy are implemented
-but default off; the 32 KiB body limit is always active. Client-IP extraction,
-IP/auth/email quotas remain deferred. See [abuse-control contracts](../architecture/api-abuse-protection.md)
-and the activation procedure below. Do not use outbound IP ranges as an inbound
-proxy allowlist or enable unconditional proxy trust. Repository defaults do not
-establish the live hosting settings; verify those in the provider dashboard.
+Dockerfile bases are pinned by digest: Node 24.22.2, PostgreSQL 17.11 and Caddy
+2.11.9; pnpm is 12.9.1. Update digests deliberately and rerun container QA.
+The browser uses `https://newmessenger-app.duckdns.org/api`; sockets use `/ws` on
+the same origin. Register/resolve that DuckDNS name before public TLS validation.
 
-```mermaid
-flowchart LR
-  browser[Browser]
-  vercel[Vercel\nVue static application]
-  render[Render\nFastify web service]
-  postgres[(Supabase PostgreSQL)]
+## Publish a Release
 
-  browser -->|HTTPS| vercel
-  browser -->|HTTPS / WSS| render
-  render -->|TLS PostgreSQL| postgres
-```
+1. Check GitHub Actions/GHCR allowances and billing for the account, especially
+   after making the repository private. Free usage is not unconditional.
+2. Manually run **Publish verified images** from trusted workflow code, selecting
+   a trusted commit, branch or tag and the public HTTPS API URL ending in `/api`.
+   It resolves one SHA, runs repository checks, then builds Linux amd64 targets
+   `api`, `web` and `migrate` from that SHA. It never connects to the VPS.
+3. Require all three publish jobs to succeed. Save their digest references from
+   the run summaries. Tags are `ghcr.io/vpdiogo/newmessenger-{api,web,migrate}:<sha>`;
+   tags can be overwritten by a rerun, so deploy by digest. Keep the API URL
+   consistent across the release. It is public build configuration, not a secret.
+4. Check each package's visibility and repository Actions access. Private packages
+   need package-read credentials on the VPS: a narrowly scoped GitHub credential
+   with `read:packages`, package/account access and organization SSO if applicable.
+   Supply it via `docker login ghcr.io --username <user> --password-stdin` from a
+   secret manager/prompt; never paste tokens into commands or Git. Protect Docker
+   credentials. Public packages permit anonymous pulls.
 
-## Current Public MVP
+Only publishing gets `packages: write`; checkout credentials are not persisted.
+Dispatching a revision executes its code: select only reviewed code.
 
-Previously recorded public endpoints (not a live availability/configuration check):
+## Prepare and Start
 
-- Frontend: `https://newmessenger-sigma.vercel.app`
-- Backend: `https://newmessenger-api.onrender.com`
-- Health check: `https://newmessenger-api.onrender.com/health`
+Copy files from the **same release revision** into `/srv/apps/newmessenger`:
+`compose.production.yaml`, `.env.production.example`, `infra/docker/init-app.sql`
+and `infra/caddy/newmessenger.caddy`. Preserve these relative paths. A private
+repository requires separately authorized read access to obtain these files.
+Keep `infra/docker/init-app.sql` readable by the database container (`chmod 644`).
 
-These URLs are public configuration, not credentials. Do not add database
-connection strings, Supabase keys, or JWT secrets to this document.
+Copy `.env.production.example` to `.env.production`, set mode `600`, and fill all
+placeholders outside Git. Generate three independent secrets with
+`openssl rand -hex 32`: database administrator password, app-role password and JWT
+secret. Set all three image references to that release's digests. Keep
+`CORS_ORIGIN=https://newmessenger-app.duckdns.org` and `PROXY_NETWORK=proxy`.
+Do not reuse development credentials or expose database/JWT secrets to the web.
 
-## Provision PostgreSQL
-
-1. Create a Supabase project in `us-east-1`, close to the Render Virginia
-   region.
-2. Keep the Data API and automatic table exposure disabled. The Fastify
-   backend, not Supabase, is the application's public API.
-3. In the Supabase Connect dialog, select **Session pooler** and copy its URI.
-   This provides an IPv4-compatible connection for the Render service.
-4. Keep the connection string in Render only as `DATABASE_URL`.
-
-## Deployment Order
-
-Use this order for the first deployment:
-
-1. Provision Supabase and obtain the Session Pooler URI without sharing it.
-2. Apply migrations explicitly against Supabase.
-3. Create the Vercel project with `apps/web` as its root directory to reserve
-   its production URL. The first build can report the API as unavailable.
-4. Create the Render Blueprint with the Vercel URL as `CORS_ORIGIN` and the
-   Session Pooler URI as `DATABASE_URL`.
-5. Configure the Render URL as Vercel's production `VITE_API_BASE_URL` and
-   redeploy Vercel.
-6. Run the public smoke QA before announcing the deployment.
-
-## Deploy the Backend
-
-1. In Render, create a Blueprint from this repository's `render.yaml`. It pins
-   Node.js 22.12.0 and pnpm 12.9.1; local Node.js 24 verification does not by itself
-   validate that separate deployment runtime.
-2. The Blueprint deploys the service in Render's Virginia region, matching the
-   Supabase `us-east-1` project. A service region cannot be changed after
-   creation.
-3. Set `DATABASE_URL` to the Supabase connection string.
-4. Leave the generated `JWT_SECRET` unchanged. It is intentionally not shared
-   with Vercel.
-5. Deploy the service and record its HTTPS URL, for example
-   `https://newmessenger-api.onrender.com`.
-
-The Blueprint installs the pinned pnpm version through npm before building.
-This avoids relying on the Corepack bundled with the Render Node runtime, which
-can fail package-signature verification for newer pnpm releases.
-
-`render.yaml` deliberately does not run migrations. Apply migrations as an
-explicit release step from a trusted terminal:
+From that directory, use this prefix for every command:
 
 ```bash
-printf "Supabase DATABASE_URL: "
-read -r -s DATABASE_URL
-echo
-export DATABASE_URL
-corepack pnpm migration:up
-unset DATABASE_URL
+dc() { docker compose --env-file .env.production -f compose.production.yaml "$@"; }
+dc config --quiet
+dc --profile tools pull
+dc up -d --wait postgres
+dc run --rm migrate
+dc up -d --wait api web
 ```
 
-Run this command once per release, before deploying application code that
-depends on the new schema. The first command reads the connection string
-without echoing it or adding it to shell history. Do not put migrations in the
-application start command.
+Start with the new empty volume; no Supabase import or reset is needed. `migrate`
+applies pending repository migrations using its migration lock/table and exits.
+Stop on failure; do not start schema-dependent application images. It never runs
+at API startup. An API healthcheck tests HTTP **and an authenticated SQL query**;
+`/health` alone only proves the listener is up. Check migration success and a
+functional API request separately before enabling ingress.
 
-## Deploy the Frontend
+`APP_DB_USER` (default `newmessenger`) owns only the app database and can apply
+migrations; the API does not use the `postgres` administrator. Initialization
+variables/passwords apply only to an empty volume. Editing them later does not
+rotate existing database credentials; plan any rotation explicitly.
 
-1. In Vercel, import this GitHub repository as a new project.
-2. Set the project's Root Directory to `apps/web` and use the Vite preset.
-3. Deploy once to obtain the Vercel production URL.
-4. Set `VITE_API_BASE_URL` to the Render HTTPS API URL for the Production
-   environment. This is a public build-time value, so it must not contain a
-   secret.
-5. Set the Render `CORS_ORIGIN` to that exact Vercel origin, such as
-   `https://newmessenger-sigma.vercel.app`.
-6. Redeploy Vercel after saving `VITE_API_BASE_URL`.
+## Integrate Central Caddy
 
-The browser derives `wss://` from the HTTPS value of `VITE_API_BASE_URL`.
+Back up the current central Caddyfile. Review its actual Compose filename/service
+and mount layout before editing: add only the site block from
+`infra/caddy/newmessenger.caddy` (or import it from a mounted directory).
+Do not replace shared configuration, recreate TLS volumes or change the other
+application. Keep bind mounts pointing at the edited file; an atomic file
+replacement can leave a single-file mount attached to its previous inode.
 
-## Smoke QA
+The snippet strips `/api` for HTTP, passes `/ws` directly to Fastify, and serves
+other paths through the internal SPA Caddy. Validate the **mounted** central
+configuration, then reload, using the existing Compose file/service names:
 
-After both deployments are live:
+```bash
+docker compose -p reverse-proxy -f /srv/proxy/caddy/compose.yaml exec -T caddy \
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker compose -p reverse-proxy -f /srv/proxy/caddy/compose.yaml exec -T caddy \
+  caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
 
-1. Confirm `GET <Render URL>/health` returns `200`.
-2. Use owner-designated test accounts in two browser sessions and create a
-   direct conversation. Registration creates persistent accounts; the local
-   development examples are not production test credentials.
-3. Send a message from one session and confirm it appears in the other without
-   refresh.
-4. Confirm browser DevTools show HTTPS API requests and a `wss://` connection.
-5. Close one client session, send a message from the other, then reopen the
-   client and confirm history recovery.
+If validation fails, do not reload. For ingress rollback restore the previous
+mounted configuration, validate and reload again. Verify the existing
+`pocandoes.com.br` route and `www` redirect before and after. DNS resolution,
+reachable 80/443 and a valid public certificate are owner activation checks;
+local HTTP/TLS rehearsal does not establish public certificate issuance.
 
-## Activate or Disable Abuse Controls
+## Verify, Update and Roll Back
 
-After local enabled/disabled QA and owner approval, set
-`HTTP_WRITE_RATE_LIMIT_ENABLED=true` and/or
-`WEBSOCKET_CONNECTION_LIMIT_ENABLED=true` on the Render service. They are
-independent and default to `false` when absent from the environment. Apply the
-provider's save/restart/redeploy procedure so the new values reach the process.
-No Blueprint mutation is needed for the application defaults.
+After startup, verify `dc ps`, health, effective limits and absence of published
+ports. Use two test accounts through HTTPS: registration/login, conversation
+creation, realtime messages, same-ID retry, history after reconnect and reload of
+a selected conversation URL. Check browser HTTPS/WSS and both applications' routes.
+Feature scenarios are in the [verification guide](../development/verification.md).
 
-Use [API abuse protection](../architecture/api-abuse-protection.md) for the single
-source of thresholds, retry/close contracts and deferred controls. Observe
-aggregate `429`/`503`, capacity rejection/occupancy logs and legitimate-use impact;
-new limiter records do not add sensitive identities, but existing Fastify logs
-still include connection metadata. Restarts reset local accounting; multiple
-instances multiply quotas and do not share socket occupancy. These controls are
-not complete DDoS protection.
+For updates, retain the previous release's three digest references and matching
+operator files securely. Read pending migrations and confirm the previous app
+images remain compatible with the resulting schema **before proceeding**. A brief
+New Messenger maintenance window is acceptable: `dc stop api web`, update files
+and image references, pull, run `dc run --rm migrate`, then `dc up -d --wait api web`.
+Avoid changing project volume/network names. Never use `down --volumes`.
 
-For undue blocking, set the affected switch to `false` and restart/redeploy. The
-body limit remains active. Activation and live provider settings must be verified
-by the owner; this documentation is not evidence they are enabled.
+If a compatible application release fails, restore prior API/web digest references
+and matching configuration, pull and recreate API/web. Preserve the database
+volume and all new writes. Do not run migration-down automatically or restore an
+old dump over live data. If the schema is incompatible, stop and plan recovery;
+backup/restore procedures belong to #84.
 
-## Rollback
+### Activate or Disable Abuse Controls
 
-- For an application regression, roll back the Vercel and Render deployments
-  to their previous release independently.
-- Do not roll back a database migration automatically. First deploy compatible
-  application code, then inspect the migration before running
-  `corepack pnpm migration:down` against the production connection string.
-- If the backend URL changes during rollback, update `VITE_API_BASE_URL`, redeploy
-  Vercel, and align Render `CORS_ORIGIN` with the resulting frontend origin.
+Both enforcement switches in `.env.production` default off. After owner approval,
+set `HTTP_WRITE_RATE_LIMIT_ENABLED=true` and/or
+`WEBSOCKET_CONNECTION_LIMIT_ENABLED=true`, then `dc up -d --wait api` to recreate
+with the new environment. Observe legitimate-use impact and aggregate rejection
+logs; disable the affected switch and recreate API if needed. Restarts reset
+instance-local accounting. Thresholds, limitations and deferred IP trust remain
+in [API abuse protection](../architecture/api-abuse-protection.md). Do not enable
+unconditional forwarded-header trust. Bounded container logs can still contain
+existing application connection metadata; these controls are not DDoS protection.
+
+## Interface for Backup/Recovery (#84)
+
+Reuse project `newmessenger`, service `postgres`, internal `database` network and
+volume `postgres-data` above. Operator configuration is `.env.production`:
+`POSTGRES_DB`, `APP_DB_USER`, `APP_DB_PASSWORD`, `POSTGRES_ADMIN_PASSWORD`,
+`JWT_SECRET` and the three release image references. Discover the database with
+Compose service commands, never another project's container name. Keep credentials
+and release/config recovery material outside Git. No R2, Restic, schedule or
+Telegram runtime is installed by this foundation.
+
+## Previous Hosting
+
+The previous topology was Vercel → Render → Supabase PostgreSQL, with recorded
+URLs `https://newmessenger-sigma.vercel.app` and
+`https://newmessenger-api.onrender.com`. This is historical configuration, not a
+live availability check. `render.yaml` remains for the existing service; this PR
+does not shut providers down, migrate their data or alter their live settings.

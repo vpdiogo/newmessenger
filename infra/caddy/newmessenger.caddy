@@ -1,0 +1,11 @@
+newmessenger-app.duckdns.org {
+	handle_path /api/* {
+		reverse_proxy newmessenger-api:3000
+	}
+	handle /ws {
+		reverse_proxy newmessenger-api:3000
+	}
+	handle {
+		reverse_proxy newmessenger-web:8080
+	}
+}

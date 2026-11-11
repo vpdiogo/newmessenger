@@ -1,0 +1,131 @@
+name: Publish verified images
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, branch or tag to verify and publish (trusted repository code)
+        required: true
+        default: main
+      api_base_url:
+        description: Public frontend API URL (HTTPS, ending in /api)
+        required: true
+        default: https://newmessenger-app.duckdns.org/api
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      revision: ${{ steps.revision.outputs.sha }}
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+        env:
+          POSTGRES_USER: newmessenger
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: newmessenger
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U newmessenger -d newmessenger"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://newmessenger:local-ci-only@localhost:5432/newmessenger
+      JWT_SECRET: local-ci-only-secret-at-least-32-characters
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Resolve immutable revision
+        id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Validate public build configuration
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          node --input-type=module <<'JS'
+          const value = process.env.API_BASE_URL;
+          const url = new URL(value);
+          if (url.protocol !== "https:" || url.username || url.password ||
+              url.search || url.hash || url.pathname !== "/api" || /\s/.test(value)) {
+            throw new Error("Use an HTTPS origin followed by /api, without credentials or whitespace");
+          }
+          JS
+      - name: Install and verify
+        env:
+          VITE_API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@12.9.1 --activate
+          pnpm install --frozen-lockfile
+          pnpm migration:up
+          pnpm lint
+          pnpm format:check
+          pnpm typecheck
+          pnpm web:typecheck
+          node --test infra/docker/*.test.mjs
+          pnpm test
+          pnpm web:test
+          pnpm build
+          pnpm web:build
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, web, migrate]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.verify.outputs.revision }}
+          persist-credentials: false
+      - name: Set lowercase image name
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          TARGET: ${{ matrix.target }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}-$TARGET" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish immutable revision
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ needs.verify.outputs.revision }}
+          build-args: |
+            BUILD_REVISION=${{ needs.verify.outputs.revision }}
+            VITE_API_BASE_URL=${{ inputs.api_base_url }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.verify.outputs.revision }}
+      - name: Record pull reference
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "\`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"

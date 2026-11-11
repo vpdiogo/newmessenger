@@ -24,6 +24,13 @@ A representative messaging check uses two local users:
 
 Payloads, pagination and close semantics are in [API and client contracts](../architecture/api-contracts.md).
 
+For deployment changes, exercise those scenarios through the container proxy,
+including a direct Vue route reload. Verify SQL-backed readiness, private database
+network/no published application ports, actual CPU/memory/log limits, graceful
+shutdown, persistence across container replacement and compatible image rollback.
+Record images/revision and distinguish local TLS from public DNS/certificate
+checks. Rehearse in an isolated local Compose project, never the shared VPS.
+
 ## Authentication and Session Recovery
 
 - Check registration boundaries, passphrases, whitespace/full-email rejection,
