@@ -100,12 +100,61 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 
+  backup: &backup
+    image: ${BACKUP_IMAGE:-ghcr.io/vpdiogo/newmessenger-backup:REPLACE_WITH_COMMIT}
+    profiles: [tools]
+    env_file:
+      - path: .env.backup
+        required: false
+    environment: *database-environment
+    networks: [database, backup-egress]
+    volumes: [backup-state:/state]
+    mem_limit: 512m
+    cpus: 0.25
+    logging: *logging
+    stop_grace_period: 30s
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  restore:
+    <<: *backup
+    profiles: [recovery]
+    command: [restore]
+    networks: [recovery, backup-egress]
+    depends_on:
+      restore-postgres:
+        condition: service_healthy
+
+  restore-postgres:
+    image: postgres:17-alpine@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
+    profiles: [recovery]
+    environment:
+      POSTGRES_USER: ${APP_DB_USER:-newmessenger}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:?}
+      POSTGRES_DB: newmessenger_restore
+    networks: [recovery]
+    volumes: [restore-data:/var/lib/postgresql/data]
+    mem_limit: 1g
+    cpus: 0.50
+    logging: *logging
+    healthcheck:
+      test:
+        [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d newmessenger_restore']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 networks:
   proxy:
     external: true
     name: ${PROXY_NETWORK:-proxy}
   database:
     internal: true
+  backup-egress:
+  recovery:
+    internal: true
 
 volumes:
   postgres-data:
+  backup-state:
+  restore-data:

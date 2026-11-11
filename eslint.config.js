@@ -11,7 +11,7 @@ export default tseslint.config(
   tseslint.configs.recommended,
   ...vue.configs["flat/essential"],
   {
-    files: ["infra/docker/**/*.mjs"],
+    files: ["infra/docker/**/*.mjs", "infra/backup/**/*.mjs"],
     languageOptions: { globals: globals.node },
   },
   {

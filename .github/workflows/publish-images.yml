@@ -74,7 +74,7 @@ jobs:
           pnpm format:check
           pnpm typecheck
           pnpm web:typecheck
-          node --test infra/docker/*.test.mjs
+          node --test infra/docker/*.test.mjs infra/backup/*.test.mjs
           pnpm test
           pnpm web:test
           pnpm build
@@ -90,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [api, web, migrate]
+        target: [api, web, migrate, backup]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -1,0 +1,16 @@
+[Unit]
+Description=New Messenger verified encrypted database backup
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sysadmin
+Group=sysadmin
+WorkingDirectory=/srv/apps/newmessenger
+UMask=0077
+ExecStart=docker compose --env-file .env.production -f compose.production.yaml run --rm --no-deps --name newmessenger-backup-job backup backup
+ExecStopPost=-docker stop --time 30 newmessenger-backup-job
+TimeoutStartSec=2h
+TimeoutStopSec=45s

@@ -31,6 +31,12 @@ shutdown, persistence across container replacement and compatible image rollback
 Record images/revision and distinguish local TLS from public DNS/certificate
 checks. Rehearse in an isolated local Compose project, never the shared VPS.
 
+For backup changes, use a local encrypted Restic repository and temporary database:
+compare schema/accounts/messages after restore, check retention over dated
+snapshots, failure/timeout redaction and concurrent-job exclusion. Exercise the
+restored application over TCP. Label local Telegram transport fixtures and failure
+simulations separately from real R2/Telegram activation checks.
+
 ## Authentication and Session Recovery
 
 - Check registration boundaries, passphrases, whitespace/full-email rejection,
